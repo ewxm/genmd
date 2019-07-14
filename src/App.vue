@@ -1,0 +1,1206 @@
+<template>
+  <div id="app" class="bg">
+    <div class="title">
+      <h3 class="title-center">{{$t('title')}}</h3>
+      <div class="title-right">
+        <digital-clock 
+        class="clock"
+        :blink="true"
+        :displaySeconds="true"
+        :twelveHour="false"/>
+        <Dropdown :transfer="true" @on-click="handleSelectedLang">
+          <a href="javascript:void(0)" style="color:#19be6b;">
+              {{languageName}}
+              <Icon color="#19be6b" type="ios-arrow-down"></Icon>
+          </a>
+          <DropdownMenu slot="list">
+              <DropdownItem v-for="item of $supportLang" :name="item.key" :key="item.key">{{item.value}}</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+          <a :href="githubURL">
+            <svg class="octicon octicon-mark-github v-align-middle" height="32" viewBox="0 0 16 16" version="1.1" width="32" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>
+          </a>
+      </div>
+    </div>
+    <Modal v-model="showMarkdownModel" fullscreen :title="$t('title_build_md')" >
+      <markdown v-model="markdownContent" ref="md" class="md" />
+    </Modal>
+    <Modal v-model="showDescModel" draggable scrollable :title="$t('btn_add_description')">
+      <p>{{$t('splicing_fill')}}</p>
+      <Input style="marginTop:8px;" type="textarea" :rows="20" v-model="inputDescription" @on-change="fillDesc($event.target.value)" />
+    </Modal>
+    <Modal v-model="showPlayModel" :title="$t('voide_tutorial')" width="1000">
+      <video
+        controls
+        width="100%"
+        ref="video"
+        @playing="handleVideoPlay"
+        @ended="handleVideoEnd"
+      >
+        <source :src="playURL" type="video/mp4" />Sorry, your browser doesn't support embedded videos.
+      </video>
+    </Modal>
+    <Modal v-model="showHeaderModel" :fullscreen="false" :closable="false" @on-ok="saveHeader">
+      <div slot="header" style="color:#f60;display:flex;">
+        <p>
+          <Icon type="ios-cog-outline" :size="20" />
+          <span>{{$t('btn_add_header')}}</span>
+        </p>
+        <Button shape="circle" icon="md-add" type="text" @click="addHeader" />
+      </div>
+      <Table   border :columns="headerColumns" :data="headerContent"></Table>
+    </Modal>
+    <Card :padding="8" bordered dis-hover>
+      <Input
+        class="value-content"
+        v-model="inputURL"
+        @on-change="handleInputURL($event.target.value)"
+      >
+        <Select
+          v-model="requestMethod"
+          slot="prepend"
+          style="width: 80px"
+          @on-change="handleMethodChange"
+        >
+          <Option v-for="m in httpMethod" :value="m" :label="m" :key="m">{{m}}</Option>
+        </Select>
+
+        <Button slot="append" :loading="loading" icon="ios-send" @click="send" class="send">
+          <span v-if="loading">{{$t('sending')}}</span>
+          <span v-else>{{$t('send')}}</span>
+        </Button>
+      </Input>
+    </Card>
+    <Card :padding="8" bordered dis-hover class="card">
+      <Input class="value-content" v-model="apiName" :placeholder="$t('holder_interface_name')" ref="inputIName">
+        <Select v-model="levelTitle" slot="prepend" style="width: 80px">
+          <Option v-for="index of Array.from({length: 15}).map((v, k) => k+1)" :value="index" :key="index">{{`${$t('select_title')} (${index})`}}</Option>
+        </Select>
+      </Input>
+    </Card>
+    <Card :padding="8" bordered dis-hover class="card">
+      <div class="label">
+        <div>
+          <h6 class="title-label">{{requestContentType}}</h6>
+          <Icon
+            v-if="isGetStyle"
+            class="plus"
+            size="16"
+            type="md-add"
+            @click="addQueryParam"
+          />
+        </div>
+        <Button
+          v-if="isGetStyle"
+          size="small"
+          type="success"
+          ghost
+          @click="switchEditStyle"
+        >{{editStyleTitle}}</Button>
+      </div>
+      <Input
+        class="value-content"
+        v-if="enableEditContent"
+        v-model="inputContent"
+        type="textarea"
+        :rows="10"
+        placeholder
+        @on-change="handleWriteContent"
+      />
+      <Table   v-else border :columns="requestColumns" :data="requestData"></Table>
+    </Card>
+    <Card :padding="8" bordered dis-hover class="card">
+      <h6 class="title-label">{{$t('response')}}</h6>
+      <Table   class="value-content" border :columns="responseColumns" :data="responseContent"></Table>
+    </Card>
+    <Affix :offset-bottom="20">
+      <div class="btn-group">
+        <Button class="btn" :type="buttomBtnType" ghost @click="showAddHeaders">{{$t('btn_add_header')}}</Button>
+        <Button v-if="false" class="btn" :type="buttomBtnType" ghost @click="showHow">{{$t('btn_tutorial')}}</Button>
+        <Button class="btn" :type="buttomBtnType" ghost @click="openCORSSite">{{$t('btn_cors')}}</Button>
+        <Button class="btn" :type="buttomBtnType" ghost @click="showAddDescription">{{$t('btn_add_description')}}</Button>
+        <Button class="btn" :type="buttomBtnType" ghost @click="resetData">{{$t('btn_reset')}}</Button>
+        <Button class="btn" :type="buttomBtnType" ghost @click="showBuildMarkdown">{{$t('btn_build_md')}}</Button>
+      </div>
+    </Affix>
+    <BackTop :height="100" :bottom="20">
+      <div class="top">{{$t('btn_back_top')}}</div>
+    </BackTop>
+  </div>
+</template>
+
+<script>
+
+import DigitalClock from "vue-digital-clock";
+import markdown from "@/components/markdown";
+import FieldData from "@/struct/FieldData"
+import { setLanguage, getLanguage } from '@/utils/utils'
+
+import { getWatchers } from "@/api/github"
+import { sendRequest } from "@/api/core"
+import constant from "@/constant"
+
+export default {
+  name: "app",
+  components: {
+    markdown,
+    DigitalClock
+  },
+  mounted() {
+    getWatchers();
+    this.updateQueryTableData();
+    this.getHeaders()
+    this.lang = this.$i18n.locale
+  },
+  computed: {
+    /**
+     * 右上角显示的语言名称
+     */
+    languageName(){
+      const defaultName = 'Language'
+      if(this.lang){
+        let targetItem = this.$supportLang.find(item => item.key === this.lang);
+        return targetItem ? targetItem.value : defaultName
+      }else{
+        return defaultName
+      }
+    },
+    /**
+     * 当前选中的请求方法是否是GET传参风格
+     */
+    isGetStyle(){
+      // "GET","POST","PUT","DELETE","OPTIONS","PATCH","TRACE","HEAD","CONNECT"
+      return ["GET","OPTIONS","TRACE","HEAD","CONNECT"].includes(this.requestMethod)
+    },
+    /**
+     * 底部Button的类型
+     */
+    buttomBtnType(){
+      return this.responseContent.length > 0 ? 'success' : 'default'
+    },
+    /**
+     * 请求内容的类型
+     */
+    requestContentType() {
+      return this.isGetStyle ? this.$t('request_string_params') : `${this.$t('request_post_payload')} <application/json>`;
+    },
+    /**
+     * 能否标记请求内容
+     */
+    enableEditContent() {
+      if (!this.isGetStyle) {
+        return true;
+      }
+      if (this.isGetStyle && this.editStyle === "PARSED") {
+        return true;
+      }
+      return false;
+    },
+    /**
+     * 编辑标题(ONLY GET)
+     */
+    editStyleTitle() {
+      return this.editStyle === "KV" ? "PARSED EDIT" : "KEY-VALUE EDIT";
+    }
+  },
+  methods: {
+    /**
+     * 获取某个字段的类型名称
+     */
+    getFieldType(value){
+      let type = this.$t('data_type_unknown');
+      if (value === undefined || value === 'undefined') {
+        // 未知类型
+        type = this.$t('data_type_unknown');
+      } else if (value === null || value === 'null') {
+          // 未知类型
+          type = this.$t('data_type_unknown');
+      }else if (typeof value === 'string') {
+          // 字段类型为字符串
+          type = this.$t('data_type_string')
+      } else if (typeof value === 'number') {
+          // 字段类型为数值(float/int/double/long)
+          const isFloat = (n) => ~~n !== n
+          if (isFloat(value)) {
+              // 浮点(单/双)
+              type = this.$t('data_type_float');
+          } else {
+              // 整型 (长短)
+              type = this.$t('data_type_int');
+          }
+      } else if (value instanceof Array) {
+          // 数组
+          type = this.$t('data_type_array');
+      } else if (typeof value === 'object') {
+          // 字段类型为数值(float/int/double/long)
+          type = this.$t('data_type_object');
+      } else if (value === true || value === false) {
+          // 布尔
+          type = this.$t('data_type_boolean');
+      }
+      return type
+    },
+    /**
+     * 切换语言
+     */
+    handleSelectedLang(lang){
+      setLanguage(lang)
+      this.$i18n.locale = lang
+      this.lang = lang
+      window.location.reload();
+    },
+    /**
+     * 填充描述信息
+     */
+    fillDesc(v) {
+      if (v) {
+        let des = v.split("->");
+        let len = this.responseContent.length;
+        for (let i = 0; i < des.length; i++) {
+          this.responseContent[i].description = des[i];
+        }
+      }
+    },
+    /**
+     * 地址栏变化
+     */
+    handleInputURL(value) {
+      if (value.includes("?")) {
+        let [path, querystring] = value.split("?");
+        if (querystring.startsWith("&")) {
+          querystring = querystring.substr(1, querystring.length);
+        }
+        let qary = querystring.split("&");
+        let rd = [];
+        for (let qar of qary) {
+          let [key, value] = qar.split("=");
+          rd.push({
+            key,
+            value,
+            description: key
+          });
+        }
+        // this.inputURL = path;
+        this.requestData = rd;
+      }
+    },
+    /**
+     * 清空调试数据
+     */
+    resetData() {
+      localStorage.clear();
+      this.headerContent = [];
+      this.requestData = [];
+      this.responseContent = [];
+      (this.responseBody = {}),
+        (this.inputContent = this.requestMethod === "GET" ? "" : "{}");
+    },
+    /**
+     * 视频进入全屏
+     */
+    handleVideoPlay() {
+      if (this.showPlayModel) this.$refs.video.webkitRequestFullScreen();
+    },
+    /**
+     * 视频退出全屏
+     */
+    handleVideoEnd() {
+      if (this.showPlayModel) this.$refs.video.webkitExitFullscreen();
+    },
+    /**
+     * 获取头信息
+     */
+    getHeaders() {
+      let headers = localStorage.getItem("headers");
+      if (headers) {
+        this.headerContent = JSON.parse(headers);
+      }
+    },
+    /**
+     * 添加头
+     */
+    addHeader() {
+      this.headerContent.push({
+        key: this.headerContent.length + 1,
+        value: "",
+        description: ""
+      });
+    },
+    /**
+     * 保存头信息
+     */
+    saveHeader() {
+      localStorage.setItem("headers", JSON.stringify(this.headerContent));
+    },
+    /**
+     * 显示头
+     */
+    showAddHeaders() {
+      this.showHeaderModel = true;
+    },
+    /**
+     * 显示自动填充
+     */
+    showAddDescription() {
+      this.showDescModel = true;
+      // Object k => 'k1->k2->k3...'
+      if(this.responseContent && !!this.responseContent.length){
+        let tmp = ''
+        this.responseContent.forEach(item => {
+          tmp += `${item.key}->`
+        })
+        this.inputDescription = tmp;
+      }
+    },
+    /**
+     * 显示播放
+     */
+    showHow() {
+      this.showPlayModel = true;
+    },
+    /**
+     * 打开跨域支持
+     */
+    openCORSSite() {
+      const link = 'https://enable-cors.org/server.html';
+      window.open('javascript:window.name;', '<script>location.replace("'+link+'")<\/script>');
+
+    },
+    /**
+     * 显示 Markdown
+     */
+    showBuildMarkdown() {
+
+      // 不强制让用户输入接口名，但是第一次需要提醒（针对没耐心的用户优化体验）
+      if(!this.apiName && !localStorage.getItem('has-show-in')){
+        this.$refs.inputIName.focus()
+        this.$Message.warning('请输入接口名称');
+        localStorage.setItem('has-show-in',true)
+        return;
+      }
+      
+      this.showMarkdownModel = true;
+      // 视图渲染完毕后滚动1像素让底部button显示出来
+      this.$nextTick(() => {
+              
+      let getType = "`GET` & `Query Params`";
+      let postType = `${this.requestMethod} & application/json`;
+      let requestBody = "?";
+      if (this.requestMethod === "GET") {
+        for (let i = 0; i < this.requestData.length; i++) {
+          let { key, value } = this.requestData[i];
+          requestBody += `${key}=${value}`;
+          if (i < this.requestData.length - 1) {
+            requestBody += "&";
+          }
+        }
+      } else {
+        try {
+          let obj = JSON.parse(this.inputContent);
+          requestBody = JSON.stringify(obj, null, 4);
+        } catch (error) {
+          requestBody = "暂无";
+        }
+      }
+    let paramName = this.$t('th_param_name');
+    let paramType = this.$t('th_param_type');
+    let paramRequired = this.$t('th_param_required');
+    let paramDesc = this.$t('th_param_description');
+    let paramExample = this.$t('th_param_example');
+    let defaultRequired = this.$t('yes');
+      // 生成入参表格
+      let requestBodyTable = `|${paramName}|${paramType}|${paramRequired}|${paramDesc}|${paramExample}|
+|------|-------|----|-------|----|`;
+      if (this.requestMethod === "GET") {
+        for (let i = 0; i < this.requestData.length; i++) {
+          let { key, value, description } = this.requestData[i];
+          let type = this.getFieldType(value)
+          requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
+        }
+      } else {
+        try {
+          let postBody = JSON.parse(this.inputContent);
+          for (let key in postBody) {
+            let type = this.getFieldType(postBody[key])
+            requestBodyTable += `\n|${key}|${type}|${defaultRequired}|-|${fieldValue}|`;
+          }
+        } catch (error) {
+          requestBodyTable = "暂无";
+        }
+      }
+
+      // 生成出参表格
+      let responseBodyTable = `|${paramName}|${paramType}|${paramRequired}|${paramDesc}|${paramExample}|
+|------|-------|----|-------|----|`;
+      for (let i = 0; i < this.responseContent.length; i++) {
+        let responseItem = this.responseContent[i];
+        let type = this.getFieldType(responseItem.value)
+        responseBodyTable += `\n|${responseItem.key}|${type}|${defaultRequired}|${responseItem.description}|${responseItem.value}|`;
+      }
+      let url = this.inputURL;
+      if (url.startsWith("http")) {
+      }
+      let md = `
+## ${this.levelTitle}、${this.apiName}
+
+> ${this.$t('api_trans_info').replace('GET',this.requestMethod)}
+
+### ${this.levelTitle}.1. ${this.$t('th_req_url')}
+
+\`${url}\`
+
+### ${this.levelTitle}.2. ${this.$t('th_req_type')}
+
+${this.requestMethod === "GET" ? getType : postType}
+
+### ${this.levelTitle}.3. ${this.$t('th_req_template')}
+\`\`\`json
+${requestBody}
+\`\`\`
+### ${this.levelTitle}.4. ${this.$t('th_req_description')}
+
+${requestBodyTable}
+
+### ${this.levelTitle}.5. ${this.$t('th_res_template')}
+
+\`\`\`json
+${JSON.stringify(this.responseBody, null, 4)}
+\`\`\`
+### ${this.levelTitle}.6. ${this.$t('th_res_description')}
+${responseBodyTable}
+`;
+
+      this.markdownContent = md;
+      this.$refs.md.updateText(md);
+      }, 600);
+
+    },
+    /**
+     * 发送请求
+     */
+    async send() {
+      if(!this.inputURL){
+        this.$Message.warning(this.$t('msg_interface_url'))
+        return;
+      }
+      this.loading = true;
+      this.$Loading.start();
+      let opt = {
+        method: this.requestMethod,
+        url: this.inputURL,
+        headers:{
+          'Content-Type': 'application/json'
+        }
+      };
+      let localHeaders = localStorage.getItem("headers");
+      if (localHeaders) {
+        let headers = JSON.parse(localHeaders);
+        headers.forEach(item => {
+          if(!item.disabled){
+            opt.headers[item.key] = item.value;
+          }
+        });
+      }
+
+      // TODO application/json、application/x-www-form-urlencoded、text/plain、application/xml
+       opt.headers['Content-Type'] = 'application/json'
+
+      if (this.requestMethod === "GET") {
+        let params = {};
+        for (let item of this.requestData) {
+          params[item.key] = item.value;
+        }
+        opt.params = params;
+      } else {
+        opt.data = this.inputContent;
+      }
+      let body;
+      try {
+        body = await sendRequest(opt);
+        this.$Message.success(this.$t('http_req_success'));
+        this.$Loading.finish();
+      } catch (error) {
+        if(!this.$Message.isShow){
+          this.$Message.isShow = true
+          this.$Message.error(error.toString());
+          this.$Message.isShow = false
+        }
+        this.$Loading.error();
+      } finally {
+        this.loading = false;
+      }
+
+      this.responseBody = body;
+
+      let arr = [];
+      /**
+       * key 当前节点字段的键
+       * originalKey 当前节点字段的虚拟键
+       * value 当前节点字段的值
+       * description 当前节点字段的键（一个描述信息的占位字段）
+       * parent 父级字段节点
+       */
+      function te(field) {
+
+          // 获取链式KEY值
+          const getChainKey = () => {
+              let keys = [];
+              for (let f of field) {
+                  keys.unshift(f.originalKey)
+              }
+              return keys.reduce((accumulator, currentValue) => `${accumulator}.${currentValue}`)
+          }
+
+          if (typeof field.value === 'object' && typeof field.value !== null) {
+              if (field.value instanceof Array) {
+                  if (field.parent) {
+                      if (field.value.length > 0) {
+                          let item = field.value[0];
+                          if(typeof item === 'object'){
+                              // 展开对象的每个节点
+                              if((item instanceof Array) && (item.length > 0) && !(item[0] instanceof Array)) {
+                                  for (let key in item[0]) {
+                                      te(new FieldData(key, `[[{${key}}]]`, item[0][key], key, field))
+                                  }
+                              }else{
+                                  // 展开对象的每个节点
+                                  for (let key in item) {
+                                      te(new FieldData(key, `[{${key}}]`, item[key], key, field))
+                                  }
+                              }
+
+                          }else{
+                              // 到达末尾节点
+                              arr.push(Object.assign(field, { key: getChainKey() }))
+                          }
+                      } else {
+                          // 无值时
+                          arr.push(Object.assign(field, { key: getChainKey() }))
+                      }
+                  } else {
+                      if (field.value.length > 0) {
+                          let item = field.value[0];
+                          // 暂不支持多维数组
+                          if(typeof item === 'object'){
+                              // 展开对象的每个节点
+                              if((item instanceof Array) && (item.length > 0) && !(item[0] instanceof Array)) {
+                                  for (let key in item[0]) {
+                                      te(new FieldData(key, `[[{${key}}]]`, item[0][key], key, field))
+                                  }
+                              }else{
+                                  for (let key in item) {
+                                      te(new FieldData(key, `[{${key}}]`, item[key], key, field))
+                                  }
+                              }
+                            
+                          }else{
+                              // 到达末尾节点
+                              arr.push(field)
+                          }
+                      } else {
+                          // 无值时
+                          arr.push(field)
+                      }
+                  }
+
+              } else {
+                  if (field.parent) {
+                      let node = new FieldData(getChainKey(), field.key, field.value, field.description, null);
+
+                      arr.push(node)
+                      for (let key in field.value) {
+                          te(new FieldData(key, key, field.value[key], key, field))
+                      }
+
+                  } else {
+                      arr.push(field)
+                      for (let key in field.value) {
+                          te(new FieldData(key, key, field.value[key], key, field))
+                      }
+                  }
+              }
+          } else {
+              arr.push(Object.assign(field, { key: getChainKey() }))
+          }
+      }
+
+      for (let key in body) {
+          let value = body[key];
+          let description = key;
+          if (typeof value === 'object' && typeof value !== null) {
+              // 顶层对象字段节点
+              let node = new FieldData(key, key, value, description, null)
+              te(node)
+          } else {
+              // 顶层基本类型节点
+              let node = new FieldData(key, key, value, description, null)
+              arr.push(node)
+          }
+      }
+
+      this.responseContent = arr;
+      // 视图渲染完毕后滚动1像素让底部button显示出来
+      this.$nextTick(()=>{
+        window.scrollBy(0,window.scrollY + 1)
+      })
+      
+    },
+    /**
+     * 请求方法切换事件
+     */
+    handleMethodChange(requestMethod) {
+      if (requestMethod === "GET" && this.inputContent.length > 0) {
+        try {
+          this.requestData = [];
+          // JSON => 字符:
+          let jsonObject = JSON.parse(this.inputContent);
+          for (let key in jsonObject) {
+            this.requestData.push({
+              key,
+              value: jsonObject[key],
+              description: "-"
+            });
+          }
+          this.updateQueryTableData();
+        } catch (error) {
+          this.requestData = [];
+        }
+      } else if (requestMethod === "POST" && this.inputContent.length > 0) {
+        let requestBody = {};
+        for (let i = 0; i < this.requestData.length; i++) {
+          let item = this.requestData[i];
+          requestBody[item.key] = item.value;
+        }
+        this.inputContent = JSON.stringify(requestBody, null, 4);
+      }
+    },
+    /**
+     * 切换GET请求时的编辑类型
+     */
+    switchEditStyle() {
+      this.editStyle = this.editStyle === "KV" ? "PARSED" : "KV";
+    },
+    /**
+     * 有新的请求数据输入
+     */
+    handleWriteContent(v) {
+      let data = [];
+      try {
+        let kvs = this.inputContent.split("\n");
+        for (let i = 0; i < kvs.length; i++) {
+          let kv = kvs[i];
+          let [key, value] = kv.split(":");
+          let description = "-";
+          if (this.requestData.length > i) {
+            description = this.requestData[i].description;
+          }
+          data.push({
+            key,
+            value,
+            description
+          });
+        }
+      } catch (e) {
+        //
+      }
+
+      this.requestData = data;
+    },
+    /**
+     * 添加一行查参数
+     */
+    addQueryParam() {
+      this.requestData.push({
+        key: this.requestData.length,
+        value: "",
+        description: ""
+      });
+      this.updateQueryTableData();
+    },
+    /**
+     * 更新查询参数表格数据
+     */
+    updateQueryTableData() {
+      if (this.requestMethod === "GET") {
+        let data = "";
+        let len = this.requestData.length;
+        for (let i = 0; i < len; i++) {
+          let { key, value } = this.requestData[i];
+          data += `${key}:${value}`;
+          if (i < len) {
+            data += "\n";
+          }
+        }
+        this.inputContent = data;
+      }
+    },
+    /**
+     * 移除表格中请求参数的某一行
+     */
+    removeRequestItem(index) {
+      this.requestData.splice(index, 1);
+    },
+    /**
+     * 移除表格中请求头的某一行
+     */
+    removeHeaderItem(index) {
+      this.headerContent.splice(index, 1);
+      localStorage.setItem("headers", JSON.stringify(this.headerContent));
+    },
+    /**
+     * 禁用表格中请求体的某一行
+     */
+    toggleHeaderState(index,newState) {
+      this.headerContent[index].disabled = newState
+    },
+    /**
+     * 移除表格中响应的某一行
+     */
+    removeResponseItem(index) {
+      this.responseContent.splice(index, 1);
+    }
+  },
+  data() {
+    return {
+      loading: false,
+      showPlayModel: false,
+      showDescModel: false,
+      showMarkdownModel: false,
+      showHeaderModel: false,
+      levelTitle: 1,
+      apiName: "",
+      responseBody: {},
+      responseContent: [],
+      inputContent: "",
+      editStyle: "KV",
+      markdownContent: `# Test`,
+      lang:'',
+      gitWatchers: 0,
+      githubURL: constant.GITHUB_PROJECT_URL,
+      inputURL: constant.GITHUB_PROJECT_INFO,
+      playURL: constant.GITHUB_VIDEO_URL,
+      inputDescription: "",
+      requestMethod: "GET",
+      httpMethod: [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+        "PATCH",
+        "TRACE",
+        "HEAD",
+        "CONNECT"
+      ],
+      headerContent: [],
+      headerColumns: [
+        {
+          title: this.$t('key'),
+          key: "name",
+          render: (h, params) => {
+            let { value, description ,disabled = false} = this.headerContent[params.index];
+            return h("Input", {
+              props: {
+                value: params.row.key,
+                disabled: disabled
+              },
+              on: {
+                "on-change": event => {
+                  this.headerContent[params.index] = {
+                    key: event.target.value,
+                    value,
+                    description
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('value'),
+          key: "age",
+          render: (h, params) => {
+            let { key ,value, description ,disabled = false} = this.headerContent[params.index];
+            return h("Input", {
+              props: {
+                value: params.row.value,
+                disabled: disabled
+              },
+              on: {
+                "on-change": event => {
+                  this.headerContent[params.index] = {
+                    key,
+                    value: event.target.value,
+                    description
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('description'),
+          key: "address",
+          render: (h, params) => {
+            let { key ,value, description ,disabled = false} = this.headerContent[params.index];
+            return h("Input", {
+              props: {
+                value: params.row.description,
+                disabled: disabled
+              },
+              on: {
+                "on-change": event => {
+                  this.headerContent[params.index] = {
+                    key,
+                    value,
+                    description: event.target.value
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('action'),
+          key: "action",
+          width: 150,
+          align: "center",
+          render: (h, params) => {
+            let { key ,value, description ,disabled = false} = this.headerContent[params.index];
+            return h("div", [
+              h(
+                "Button",
+                {
+                  props: {
+                    type: "error",
+                    size: "small"
+                  },
+                  on: {
+                    click: () => {
+                      this.removeHeaderItem(params.index);
+                      this.getHeaders();
+                    }
+                  }
+                },
+                this.$t('btn_delete')
+              ),
+              h(
+                "Button",
+                {
+                  props: {
+                    type: disabled ? "success" : "warning" ,
+                    size: "small",
+                    ghost: true,
+                  },
+                  style: {
+                    marginLeft: '5px'
+                  },
+                  on: {
+                    click: () => {
+                      this.toggleHeaderState(params.index,!disabled);
+                      this.saveHeader();
+                      this.getHeaders();
+                    }
+                  }
+                },
+                disabled ? this.$t('btn_enable'):this.$t('btn_disabled')
+              )
+            ]);
+          }
+        }
+      ],
+      requestColumns: [
+        {
+          title: this.$t('key'),
+          key: "name",
+          render: (h, params) => {
+            return h("Input", {
+              props: {
+                value: params.row.key
+              },
+              on: {
+                "on-change": event => {
+                  let { value, description } = this.requestData[params.index];
+                  this.requestData[params.index] = {
+                    key: event.target.value,
+                    value,
+                    description
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('value'),
+          key: "age",
+          render: (h, params) => {
+            return h("Input", {
+              props: {
+                value: params.row.value
+              },
+              on: {
+                "on-change": event => {
+                  let { key, description } = this.requestData[params.index];
+                  this.requestData[params.index] = {
+                    key,
+                    value: event.target.value,
+                    description
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('description'),
+          key: "address",
+          render: (h, params) => {
+            return h("Input", {
+              props: {
+                value: params.row.description
+              },
+              on: {
+                "on-change": event => {
+                  let { key, value } = this.requestData[params.index];
+                  this.requestData[params.index] = {
+                    key,
+                    value,
+                    description: event.target.value
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('action'),
+          key: "action",
+          width: 150,
+          align: "center",
+          render: (h, params) => {
+            return h("div", [
+              h(
+                "Button",
+                {
+                  props: {
+                    type: "error",
+                    size: "small"
+                  },
+                  on: {
+                    click: () => {
+                      this.removeRequestItem(params.index);
+                    }
+                  }
+                },
+                this.$t('btn_delete')
+              )
+            ]);
+          }
+        }
+      ],
+      responseColumns: [
+        {
+          title: this.$t('key'),
+          key: "name",
+          render: (h, params) => {
+            return h("div", [params.row.key]);
+          }
+        },
+        {
+          title: this.$t('value'),
+          key: "age",
+          render: (h, params) => {
+            return h("div", [params.row.value]);
+          }
+        },
+        {
+          title: this.$t('description'),
+          key: "address",
+          render: (h, params) => {
+            return h("Input", {
+              props: {
+                value: params.row.description
+              },
+              on: {
+                "on-change": event => {
+                  let { key, value } = this.responseContent[params.index];
+                  this.responseContent[params.index] = {
+                    key,
+                    value,
+                    description: event.target.value
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('action'),
+          key: "action",
+          width: 150,
+          align: "center",
+          render: (h, params) => {
+            return h("div", [
+              h(
+                "Button",
+                {
+                  props: {
+                    type: "error",
+                    size: "small"
+                  },
+                  on: {
+                    click: () => {
+                      this.removeResponseItem(params.index);
+                    }
+                  }
+                },
+                this.$t('btn_delete')
+              )
+            ]);
+          }
+        }
+      ],
+      requestData: [
+        {
+          key: "id",
+          value: "100001",
+          description: this.$t('input_id')
+        }
+      ],
+    };
+  }
+};
+</script>
+
+<style>
+#app {
+  font-family: "Avenir", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #2c3e50;
+  padding: 8px;
+  height: 100%;
+  width:100%;
+}
+html{
+  height: 100%;
+  width:100%;
+}
+body{
+  height: 100%;
+  width:100%;
+}
+.bg {
+    /* background: rgb(51, 51, 51); */
+  	background-image:url('./assets/fly.jpeg');
+    background-size:cover;
+    /* padding: 20px; */
+    /* -moz-filter: blur(5px);
+    -webkit-filter: blur(5px);
+    -o-filter: blur(5px);
+    -ms-filter: blur(5px);
+    filter: blur(5px); */
+}
+
+.content {
+  margin-top: 10px;
+}
+
+.label {
+  padding-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.plus {
+  margin-left: 4px;
+}
+input {
+  color: #515a6e;
+}
+h6 {
+  display: inline;
+  margin: 0, 0, 10px, 0;
+}
+
+.md {
+  width: 100%;
+  height: 100%;
+}
+
+.tip {
+  color: #19be6b;
+  margin-top: 20px;
+}
+.btn {
+  color: white;
+  margin-top: 12px;
+  margin-left: 5px;
+}
+
+.title-label {
+  color: #17233d;
+}
+
+.value-content {
+  margin-top: 6px;
+}
+.card {
+  margin-top: 10px;
+}
+.top {
+  padding: 10px;
+  background: #19be6b95;
+  color: #fff;
+  text-align: center;
+  border-radius: 2px;
+}
+.title {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: center;
+  padding-bottom: 5px;
+}
+
+.title-right{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: center;
+  padding-bottom: 5px;
+}
+
+.title a  {
+  width:20px;
+  height: 20px;
+}
+
+ .title svg{
+  width:inherit;
+  height:inherit;
+}
+
+.title-center {
+  color: white;
+  text-decoration: underline;
+}
+
+.clock {
+  background-color: #263238;
+  color: #eceff1;
+  padding: 0.3rem 0.6rem;
+  margin-right: 5px;
+  font-size: 0.5rem;
+  font-family: "Menlo", monospace;
+
+}
+
+/* github theme */
+.gh-text, .gh-text, .gh-count{
+  color: #19be6b90;
+}
+</style>
