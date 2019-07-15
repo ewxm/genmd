@@ -806,11 +806,11 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  this.headerContent[params.index] = {
+                  this.headerContent.splice(params.index,1,{
                     key: event.target.value,
                     value,
                     description
-                  };
+                  });
                 }
               }
             });
@@ -828,11 +828,11 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  this.headerContent[params.index] = {
+                  this.headerContent.splice(params.index,1,{
                     key,
                     value: event.target.value,
                     description
-                  };
+                  });
                 }
               }
             });
@@ -850,11 +850,11 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  this.headerContent[params.index] = {
+                  this.headerContent.splice(params.index,1,{
                     key,
                     value,
                     description: event.target.value
-                  };
+                  });
                 }
               }
             });
