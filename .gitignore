@@ -21,3 +21,7 @@ package-lock.json
 *.njsproj
 *.sln
 *.sw?
+
+
+# sh script
+build.sh
