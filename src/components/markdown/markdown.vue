@@ -46,15 +46,20 @@ export default {
       });
     },
     /**
-     * 更新markdown文本
+     * 更新markdown文本内容
      */
     updateMarkdownText(value) {
       let isPreview = this.editor.isPreviewActive()
-      //console.log(this.editor)
       if(isPreview){
         this.editor.togglePreview()
       }
       this.editor.value(value);
+    },
+    /**
+     * 获取markdown文本内容
+     */
+    getMarkdownValue(){
+      return this.editor.value();
     }
   },
   mounted() {

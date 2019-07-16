@@ -24,6 +24,10 @@
     </div>
     <Modal v-model="showMarkdownModel" fullscreen :title="$t('title_build_md')" >
       <markdown v-model="markdownContent" ref="md" class="md" />
+      <div slot="footer">
+        <Button type="text" @click="downloadMarkdown">下载文档</Button>
+        <Button type="text" @click="() => (this.showMarkdownModel = false)">关闭窗口</Button>
+      </div>
     </Modal>
     <Modal v-model="showDescModel" draggable scrollable :title="$t('btn_add_description')">
       <p>{{$t('splicing_fill')}}</p>
@@ -134,7 +138,7 @@
 import DigitalClock from "vue-digital-clock";
 import markdown from "@/components/markdown";
 import FieldData from "@/struct/FieldData"
-import { setLanguage, getLanguage } from '@/utils/utils'
+import { setLanguage, getLanguage,getFieldType,downloadString } from '@/utils/utils'
 
 import { getWatchers } from "@/api/github"
 import { sendRequest } from "@/api/core"
@@ -204,41 +208,8 @@ export default {
     }
   },
   methods: {
-    /**
-     * 获取某个字段的类型名称
-     */
-    getFieldType(value){
-      let type = this.$t('data_type_unknown');
-      if (value === undefined || value === 'undefined') {
-        // 未知类型
-        type = this.$t('data_type_unknown');
-      } else if (value === null || value === 'null') {
-          // 未知类型
-          type = this.$t('data_type_unknown');
-      }else if (typeof value === 'string') {
-          // 字段类型为字符串
-          type = this.$t('data_type_string')
-      } else if (typeof value === 'number') {
-          // 字段类型为数值(float/int/double/long)
-          const isFloat = (n) => ~~n !== n
-          if (isFloat(value)) {
-              // 浮点(单/双)
-              type = this.$t('data_type_float');
-          } else {
-              // 整型 (长短)
-              type = this.$t('data_type_int');
-          }
-      } else if (value instanceof Array) {
-          // 数组
-          type = this.$t('data_type_array');
-      } else if (typeof value === 'object') {
-          // 字段类型为数值(float/int/double/long)
-          type = this.$t('data_type_object');
-      } else if (value === true || value === false) {
-          // 布尔
-          type = this.$t('data_type_boolean');
-      }
-      return type
+    downloadMarkdown(){
+      downloadString(this.$refs.md.getMarkdownValue(),`${this.apiName || Date.now()}.md`)
     },
     /**
      * 切换语言
@@ -414,14 +385,14 @@ export default {
       if (this.requestMethod === "GET") {
         for (let i = 0; i < this.requestData.length; i++) {
           let { key, value, description } = this.requestData[i];
-          let type = this.getFieldType(value)
+          let type = this.$t(`data_type_${getFieldType(value)}`);
           requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
         }
       } else {
         try {
           let postBody = JSON.parse(this.inputContent);
           for (let key in postBody) {
-            let type = this.getFieldType(postBody[key])
+            let type = this.$t(`data_type_${getFieldType(postBody[key])}`);
             requestBodyTable += `\n|${key}|${type}|${defaultRequired}|-|${fieldValue}|`;
           }
         } catch (error) {
@@ -434,7 +405,7 @@ export default {
 |------|-------|----|-------|----|`;
       for (let i = 0; i < this.responseContent.length; i++) {
         let responseItem = this.responseContent[i];
-        let type = this.getFieldType(responseItem.value)
+        let type = this.$t(`data_type_${getFieldType(responseItem.value)}`);
         responseBodyTable += `\n|${responseItem.key}|${type}|${defaultRequired}|${responseItem.description}|${responseItem.value}|`;
       }
       let url = this.inputURL;
