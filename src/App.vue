@@ -471,7 +471,8 @@ ${responseBodyTable}
 `;
 
       this.markdownContent = md;
-      this.$refs.md.updateText(md);
+      this.$refs.md.updateMarkdownText(md);
+
       }, 600);
 
     },

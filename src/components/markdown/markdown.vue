@@ -45,7 +45,15 @@ export default {
         this.$emit("on-blur", this.editor.value());
       });
     },
-    updateText(value) {
+    /**
+     * 更新markdown文本
+     */
+    updateMarkdownText(value) {
+      let isPreview = this.editor.isPreviewActive()
+      //console.log(this.editor)
+      if(isPreview){
+        this.editor.togglePreview()
+      }
       this.editor.value(value);
     }
   },
