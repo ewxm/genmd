@@ -31,7 +31,7 @@
     </Modal>
     <Modal v-model="showDescModel" draggable scrollable :title="$t('btn_add_description')">
       <p>{{$t('splicing_fill')}}</p>
-      <Input style="marginTop:8px;" type="textarea" :rows="20" v-model="inputDescription" @on-change="fillDesc($event.target.value)" />
+      <IViewInput style="marginTop:8px;" type="textarea" :rows="20" v-model="inputDescription" @on-change="fillDesc($event.target.value)" />
     </Modal>
     <Modal v-model="showPlayModel" :title="$t('voide_tutorial')" width="1000">
       <video
@@ -55,7 +55,7 @@
       <Table   border :columns="headerColumns" :data="headerContent"></Table>
     </Modal>
     <Card :padding="8" bordered dis-hover>
-      <Input
+      <IViewInput
         class="value-content"
         v-model="inputURL"
         @on-change="handleInputURL($event.target.value)"
@@ -73,14 +73,14 @@
           <span v-if="loading">{{$t('sending')}}</span>
           <span v-else>{{$t('send')}}</span>
         </Button>
-      </Input>
+      </IViewInput>
     </Card>
     <Card :padding="8" bordered dis-hover class="card">
-      <Input class="value-content" v-model="apiName" :placeholder="$t('holder_interface_name')" ref="inputIName">
+      <IViewInput class="value-content" v-model="apiName" :placeholder="$t('holder_interface_name')" ref="inputIName">
         <Select v-model="levelTitle" slot="prepend" style="width: 80px">
           <Option v-for="index of Array.from({length: 15}).map((v, k) => k+1)" :value="index" :key="index">{{`${$t('select_title')} (${index})`}}</Option>
         </Select>
-      </Input>
+      </IViewInput>
     </Card>
     <Card :padding="8" bordered dis-hover class="card">
       <div class="label">
@@ -102,7 +102,7 @@
           @click="switchEditStyle"
         >{{editStyleTitle}}</Button>
       </div>
-      <Input
+      <IViewInput
         class="value-content"
         v-if="enableEditContent"
         v-model="inputContent"
@@ -138,7 +138,7 @@
 import DigitalClock from "vue-digital-clock";
 import markdown from "@/components/markdown";
 import FieldData from "@/struct/FieldData"
-import { setLanguage, getLanguage,getFieldType,downloadString } from '@/utils/utils'
+import { setLanguage, getFieldType,downloadString } from '@/utils/utils'
 
 import { getWatchers } from "@/api/github"
 import { sendRequest } from "@/api/core"
@@ -225,10 +225,13 @@ export default {
      */
     fillDesc(v) {
       if (v) {
-        let des = v.split("->");
-        let len = this.responseContent.length;
-        for (let i = 0; i < des.length; i++) {
-          this.responseContent[i].description = des[i];
+        let descriptons = v.split("->");
+        let len = descriptons.length;
+        for (let i = 0; i < len; i++) {
+          if(this.responseContent[i].description != descriptons[i]){
+            // this.$set(this.responseContent,i,Ob)
+            this.responseContent.splice(i,1,Object.assign({},...this.responseContent[i],{description: descriptons[i]}))
+          }
         }
       }
     },
@@ -237,7 +240,7 @@ export default {
      */
     handleInputURL(value) {
       if (value.includes("?")) {
-        let [path, querystring] = value.split("?");
+        let querystring = value.split("?")[1];
         if (querystring.startsWith("&")) {
           querystring = querystring.substr(1, querystring.length);
         }
@@ -251,7 +254,6 @@ export default {
             description: key
           });
         }
-        // this.inputURL = path;
         this.requestData = rd;
       }
     },
@@ -333,9 +335,8 @@ export default {
      * 打开跨域支持
      */
     openCORSSite() {
-      const link = 'https://enable-cors.org/server.html';
-      window.open('javascript:window.name;', '<script>location.replace("'+link+'")<\/script>');
-
+      const url = `<script>location.replace("https://enable-cors.org/server.html")<\/script>`
+      window.open('javascript:window.name;', url);
     },
     /**
      * 显示 Markdown
@@ -409,8 +410,6 @@ export default {
         responseBodyTable += `\n|${responseItem.key}|${type}|${defaultRequired}|${responseItem.description}|${responseItem.value}|`;
       }
       let url = this.inputURL;
-      if (url.startsWith("http")) {
-      }
       let md = `
 ## ${this.levelTitle}、${this.apiName}
 
@@ -504,7 +503,19 @@ ${responseBodyTable}
 
       this.responseBody = body;
 
-      let arr = [];
+      this.responseContent = this.createFieldCollection(body);
+
+      // 视图渲染完毕后滚动1像素让底部button显示出来
+      this.$nextTick(()=>{
+        window.scrollBy(0,window.scrollY + 1)
+      })
+      
+    },
+    /**
+     * 生成一个请求和响应对象字段集合
+     */
+    createFieldCollection(obj){
+      let fieldArray = [];
       /**
        * key 当前节点字段的键
        * originalKey 当前节点字段的虚拟键
@@ -512,7 +523,7 @@ ${responseBodyTable}
        * description 当前节点字段的键（一个描述信息的占位字段）
        * parent 父级字段节点
        */
-      function te(field) {
+      function nodeUp(field) {
 
           // 获取链式KEY值
           const getChainKey = () => {
@@ -532,22 +543,22 @@ ${responseBodyTable}
                               // 展开对象的每个节点
                               if((item instanceof Array) && (item.length > 0) && !(item[0] instanceof Array)) {
                                   for (let key in item[0]) {
-                                      te(new FieldData(key, `[[{${key}}]]`, item[0][key], key, field))
+                                      nodeUp(new FieldData(key, `[[{${key}}]]`, item[0][key], key, field))
                                   }
                               }else{
                                   // 展开对象的每个节点
                                   for (let key in item) {
-                                      te(new FieldData(key, `[{${key}}]`, item[key], key, field))
+                                      nodeUp(new FieldData(key, `[{${key}}]`, item[key], key, field))
                                   }
                               }
 
                           }else{
                               // 到达末尾节点
-                              arr.push(Object.assign(field, { key: getChainKey() }))
+                              fieldArray.push(Object.assign(field, { key: getChainKey() }))
                           }
                       } else {
                           // 无值时
-                          arr.push(Object.assign(field, { key: getChainKey() }))
+                          fieldArray.push(Object.assign(field, { key: getChainKey() }))
                       }
                   } else {
                       if (field.value.length > 0) {
@@ -557,21 +568,21 @@ ${responseBodyTable}
                               // 展开对象的每个节点
                               if((item instanceof Array) && (item.length > 0) && !(item[0] instanceof Array)) {
                                   for (let key in item[0]) {
-                                      te(new FieldData(key, `[[{${key}}]]`, item[0][key], key, field))
+                                      nodeUp(new FieldData(key, `[[{${key}}]]`, item[0][key], key, field))
                                   }
                               }else{
                                   for (let key in item) {
-                                      te(new FieldData(key, `[{${key}}]`, item[key], key, field))
+                                      nodeUp(new FieldData(key, `[{${key}}]`, item[key], key, field))
                                   }
                               }
                             
                           }else{
                               // 到达末尾节点
-                              arr.push(field)
+                              fieldArray.push(field)
                           }
                       } else {
                           // 无值时
-                          arr.push(field)
+                          fieldArray.push(field)
                       }
                   }
 
@@ -579,43 +590,37 @@ ${responseBodyTable}
                   if (field.parent) {
                       let node = new FieldData(getChainKey(), field.key, field.value, field.description, null);
 
-                      arr.push(node)
+                      fieldArray.push(node)
                       for (let key in field.value) {
-                          te(new FieldData(key, key, field.value[key], key, field))
+                          nodeUp(new FieldData(key, key, field.value[key], key, field))
                       }
 
                   } else {
-                      arr.push(field)
+                      fieldArray.push(field)
                       for (let key in field.value) {
-                          te(new FieldData(key, key, field.value[key], key, field))
+                          nodeUp(new FieldData(key, key, field.value[key], key, field))
                       }
                   }
               }
           } else {
-              arr.push(Object.assign(field, { key: getChainKey() }))
+              fieldArray.push(Object.assign(field, { key: getChainKey() }))
           }
       }
 
-      for (let key in body) {
-          let value = body[key];
+      for (let key in obj) {
+          let value = obj[key];
           let description = key;
           if (typeof value === 'object' && typeof value !== null) {
               // 顶层对象字段节点
               let node = new FieldData(key, key, value, description, null)
-              te(node)
+              nodeUp(node)
           } else {
               // 顶层基本类型节点
               let node = new FieldData(key, key, value, description, null)
-              arr.push(node)
+              fieldArray.push(node)
           }
       }
-
-      this.responseContent = arr;
-      // 视图渲染完毕后滚动1像素让底部button显示出来
-      this.$nextTick(()=>{
-        window.scrollBy(0,window.scrollY + 1)
-      })
-      
+      return fieldArray
     },
     /**
      * 请求方法切换事件
@@ -655,7 +660,7 @@ ${responseBodyTable}
     /**
      * 有新的请求数据输入
      */
-    handleWriteContent(v) {
+    handleWriteContent() {
       let data = [];
       try {
         let kvs = this.inputContent.split("\n");
@@ -771,7 +776,7 @@ ${responseBodyTable}
           key: "name",
           render: (h, params) => {
             let { value, description ,disabled = false} = this.headerContent[params.index];
-            return h("Input", {
+            return h("IViewInput", {
               props: {
                 value: params.row.key,
                 disabled: disabled
@@ -792,8 +797,9 @@ ${responseBodyTable}
           title: this.$t('value'),
           key: "age",
           render: (h, params) => {
-            let { key ,value, description ,disabled = false} = this.headerContent[params.index];
-            return h("Input", {
+            // let { key ,value, description ,disabled = false} = this.headerContent[params.index];
+            let { key , description ,disabled = false} = this.headerContent[params.index];
+            return h("IViewInput", {
               props: {
                 value: params.row.value,
                 disabled: disabled
@@ -814,8 +820,8 @@ ${responseBodyTable}
           title: this.$t('description'),
           key: "address",
           render: (h, params) => {
-            let { key ,value, description ,disabled = false} = this.headerContent[params.index];
-            return h("Input", {
+            let { key ,value ,disabled = false} = this.headerContent[params.index];
+            return h("IViewInput", {
               props: {
                 value: params.row.description,
                 disabled: disabled
@@ -838,7 +844,8 @@ ${responseBodyTable}
           width: 150,
           align: "center",
           render: (h, params) => {
-            let { key ,value, description ,disabled = false} = this.headerContent[params.index];
+            // let { key ,value, description ,disabled = false} = this.headerContent[params.index];
+            let {  disabled = false} = this.headerContent[params.index];
             return h("div", [
               h(
                 "Button",
@@ -886,7 +893,7 @@ ${responseBodyTable}
           title: this.$t('key'),
           key: "name",
           render: (h, params) => {
-            return h("Input", {
+            return h("IViewInput", {
               props: {
                 value: params.row.key
               },
@@ -907,7 +914,7 @@ ${responseBodyTable}
           title: this.$t('value'),
           key: "age",
           render: (h, params) => {
-            return h("Input", {
+            return h("IViewInput", {
               props: {
                 value: params.row.value
               },
@@ -928,7 +935,7 @@ ${responseBodyTable}
           title: this.$t('description'),
           key: "address",
           render: (h, params) => {
-            return h("Input", {
+            return h("IViewInput", {
               props: {
                 value: params.row.description
               },
@@ -990,7 +997,7 @@ ${responseBodyTable}
           title: this.$t('description'),
           key: "address",
           render: (h, params) => {
-            return h("Input", {
+            return h("IViewInput", {
               props: {
                 value: params.row.description
               },
@@ -1064,15 +1071,8 @@ body{
   width:100%;
 }
 .bg {
-    /* background: rgb(51, 51, 51); */
   	background-image:url('./assets/fly.jpeg');
     background-size:cover;
-    /* padding: 20px; */
-    /* -moz-filter: blur(5px);
-    -webkit-filter: blur(5px);
-    -o-filter: blur(5px);
-    -ms-filter: blur(5px);
-    filter: blur(5px); */
 }
 
 .content {

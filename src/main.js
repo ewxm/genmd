@@ -11,7 +11,7 @@ Vue.component('Modal', Modal);
 Vue.component('Card', Card);
 Vue.component('Select', Select);
 Vue.component('Option', Option);
-Vue.component('Input', Input);
+Vue.component('IViewInput', Input);
 Vue.component('Icon', Icon);
 Vue.component('Affix', Affix);
 Vue.component('BackTop', BackTop);
