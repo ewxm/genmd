@@ -4,7 +4,7 @@ export default {
     key: '键',
     value: '值',
     description: '描述',
-    action: 'Action',
+    action: '操作',
     request: '请求体',
     request_post_payload: '请求体',
     request_string_params: '查询参数',
@@ -51,4 +51,6 @@ export default {
     select_title: '标题',
     splicing_fill :'把 “Description” 用 “->” 拼接，程序会自动填入到 “Response” 区域，如: 项目ID->节点ID->项目名称->项目全名->暂无->暂无->网页地址->描述信息',
     api_trans_info:'请求方式通过 `HTTP` 方式进行通讯， `GET` 方式传递参数，参数的编码格式采用 `UTF-8` 编码格式。',
+    download_md: '下载文档',
+    close_window: '关闭窗口',
 }

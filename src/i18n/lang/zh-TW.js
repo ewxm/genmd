@@ -4,7 +4,7 @@ export default {
     key: '鍵',
     value: '值',
     description: '描述',
-    action: 'Action',
+    action: '操作',
     request: '請求體',
     request_post_payload: '請求體',
     request_string_params: '查詢參數',
@@ -51,4 +51,6 @@ export default {
     select_title: '標題',
     splicing_fill :'把 “Description” 用 “->” 拚接，程式會自動填入到 “Response” 區域，如: 項目ID->節點ID->項目名稱->項目全名->暫無->暫無->網頁地址->描述信息',
     api_trans_info:'請求方式通過 `HTTP` 方式進行通訊， `GET` 方式傳遞參數，參數的編碼格式採用 `UTF-8` 編碼格式。',
+    download_md: '下載文檔',
+    close_window: '關閉視窗',
 }

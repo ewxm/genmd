@@ -51,4 +51,6 @@ export default {
     select_title: 'Title',
     splicing_fill :'Splicing "Description" with "->", the program will automatically fill in the "Response" area, such as: ID->node_id->Name->Full Name->Private?->Owner->HTTP URL->Description',
     api_trans_info:' The way of request use the protocol of `HTTP`, and the parameters passed by the way of `GET`. encoding format  use `UTF-8`.',
+    download_md: 'Download',
+    close_window: 'Close',
 }

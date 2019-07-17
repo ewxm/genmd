@@ -25,8 +25,8 @@
     <Modal v-model="showMarkdownModel" fullscreen :title="$t('title_build_md')" >
       <markdown v-model="markdownContent" ref="md" class="md" />
       <div slot="footer">
-        <Button type="text" @click="downloadMarkdown">下载文档</Button>
-        <Button type="text" @click="() => (this.showMarkdownModel = false)">关闭窗口</Button>
+        <Button type="text" @click="downloadMarkdown">{{$t('download_md')}}</Button>
+        <Button type="text" @click="() => (this.showMarkdownModel = false)">{{$t('close_window')}}</Button>
       </div>
     </Modal>
     <Modal v-model="showDescModel" draggable scrollable :title="$t('btn_add_description')">
