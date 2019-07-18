@@ -228,9 +228,11 @@ export default {
         let descriptons = v.split("->");
         let len = descriptons.length;
         for (let i = 0; i < len; i++) {
+          console.log(JSON.stringify(this.responseContent[i]))
           if(this.responseContent[i].description != descriptons[i]){
+            console.log('--update->' + i)
             // this.$set(this.responseContent,i,Ob)
-            this.responseContent.splice(i,1,Object.assign({},...this.responseContent[i],{description: descriptons[i]}))
+            //this.responseContent.splice(i,1,Object.assign({},...this.responseContent[i],{description: descriptons[i]}))
           }
         }
       }
@@ -317,13 +319,14 @@ export default {
     showAddDescription() {
       this.showDescModel = true;
       // Object k => 'k1->k2->k3...'
-      if(this.responseContent && !!this.responseContent.length){
-        let tmp = ''
-        this.responseContent.forEach(item => {
-          tmp += `${item.key}->`
-        })
-        this.inputDescription = tmp;
+      let len = this.responseContent.length;
+      let description = ''
+      if(this.responseContent && len){
+        for(let i = 0;i<len;i++){
+            description += ( (i > 0 ? '->':'') + this.responseContent[i].key)
+        }
       }
+      this.inputDescription = description
     },
     /**
      * 显示播放
