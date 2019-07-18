@@ -225,14 +225,13 @@ export default {
      */
     fillDesc(v) {
       if (v) {
-        let descriptons = v.split("->");
-        let len = descriptons.length;
+        let descriptions = v.split("->");
+        let len = descriptions.length;
         for (let i = 0; i < len; i++) {
-          console.log(JSON.stringify(this.responseContent[i]))
-          if(this.responseContent[i].description != descriptons[i]){
-            console.log('--update->' + i)
-            // this.$set(this.responseContent,i,Ob)
-            //this.responseContent.splice(i,1,Object.assign({},...this.responseContent[i],{description: descriptons[i]}))
+          if(this.responseContent[i].description != descriptions[i]){
+            let oldDescription = this.responseContent[i];
+            this.responseContent.splice(i,1,Object.assign({},oldDescription,{ description: descriptions[i]}))
+            console.log('update:' + i)
           }
         }
       }
