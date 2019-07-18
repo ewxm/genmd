@@ -25,8 +25,8 @@
     <Modal v-model="showMarkdownModel" fullscreen :title="$t('title_build_md')" >
       <markdown v-model="markdownContent" ref="md" class="md" />
       <div slot="footer">
-        <Button type="text" @click="downloadMarkdown">{{$t('download_md')}}</Button>
         <Button type="text" @click="() => (this.showMarkdownModel = false)">{{$t('close_window')}}</Button>
+        <Button type="text" @click="downloadMarkdown">{{$t('download_md')}}</Button>
       </div>
     </Modal>
     <Modal v-model="showDescModel" draggable scrollable :title="$t('btn_add_description')">
@@ -231,7 +231,6 @@ export default {
           if(this.responseContent[i].description != descriptions[i]){
             let oldDescription = this.responseContent[i];
             this.responseContent.splice(i,1,Object.assign({},oldDescription,{ description: descriptions[i]}))
-            console.log('update:' + i)
           }
         }
       }
