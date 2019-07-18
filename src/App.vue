@@ -323,7 +323,10 @@ export default {
       let description = ''
       if(this.responseContent && len){
         for(let i = 0;i<len;i++){
-            description += ( (i > 0 ? '->':'') + this.responseContent[i].key)
+          if(i > 0){
+            description+= '->'
+          }
+          description += this.responseContent[i].key
         }
       }
       this.inputDescription = description
