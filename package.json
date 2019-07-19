@@ -51,5 +51,12 @@
   "browserslist": [
     "> 1%",
     "last 2 versions"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yzb0101/genmd.git"
+  },
+  "keywords": [
+    "API,MARKDOWN,接口,接口文档"
   ]
 }
