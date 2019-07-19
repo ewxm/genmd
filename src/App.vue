@@ -1,5 +1,6 @@
 <template>
   <div id="app" class="bg">
+    <!-- 头部控件 -->
     <div class="title">
       <h3 class="title-center">{{$t('title')}}</h3>
       <div class="title-right">
@@ -22,6 +23,7 @@
           </a>
       </div>
     </div>
+    <!-- 模态框 -->
     <Modal v-model="showMarkdownModel" fullscreen :title="$t('title_build_md')" >
       <markdown v-model="markdownContent" ref="md" class="md" />
       <div slot="footer">
@@ -54,6 +56,7 @@
       </div>
       <Table   border :columns="headerColumns" :data="headerContent"></Table>
     </Modal>
+    <!-- 地址栏 -->
     <Card :padding="8" bordered dis-hover>
       <IViewInput
         class="value-content"
@@ -75,6 +78,7 @@
         </Button>
       </IViewInput>
     </Card>
+    <!-- 接口名称输入组件 -->
     <Card :padding="8" bordered dis-hover class="card">
       <IViewInput class="value-content" v-model="apiName" :placeholder="$t('holder_interface_name')" ref="inputIName">
         <Select v-model="levelTitle" slot="prepend" style="width: 80px">
@@ -82,6 +86,7 @@
         </Select>
       </IViewInput>
     </Card>
+    <!-- 请求展示组件 -->
     <Card :padding="8" bordered dis-hover class="card">
       <div class="label">
         <div>
@@ -113,10 +118,12 @@
       />
       <Table   v-else border :columns="requestColumns" :data="requestData"></Table>
     </Card>
+    <!-- 相应展示组件 -->
     <Card :padding="8" bordered dis-hover class="card">
       <h6 class="title-label">{{$t('response')}}</h6>
       <Table   class="value-content" border :columns="responseColumns" :data="responseContent"></Table>
     </Card>
+    <!-- 固定按钮 -->
     <Affix :offset-bottom="20">
       <div class="btn-group">
         <Button class="btn" :type="buttomBtnType" ghost @click="showAddHeaders">{{$t('btn_add_header')}}</Button>
@@ -208,6 +215,9 @@ export default {
     }
   },
   methods: {
+    /**
+     * 下载markdown
+     */
     downloadMarkdown(){
       downloadString(this.$refs.md.getMarkdownValue(),`${this.apiName || Date.now()}.md`)
     },
@@ -215,10 +225,12 @@ export default {
      * 切换语言
      */
     handleSelectedLang(lang){
-      setLanguage(lang)
-      this.$i18n.locale = lang
-      this.lang = lang
-      window.location.reload();
+      if(lang !== this.$i18n.locale){
+        setLanguage(lang)
+        this.$i18n.locale = lang
+        this.lang = lang
+        window.location.reload();
+      }
     },
     /**
      * 填充描述信息
