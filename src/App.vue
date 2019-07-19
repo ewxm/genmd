@@ -99,7 +99,7 @@
               @click="addQueryParam"
             />
           </div>
-          <RadioGroup v-model="requestType">
+          <RadioGroup v-if="!isGetStyle" v-model="requestType">
             <Radio v-for="type of requestTypes" :label="type.label" :key="type.label">{{type.label}}</Radio>
           </RadioGroup>
       </div>
@@ -189,7 +189,7 @@ export default {
      * 请求内容的类型
      */
     requestContentType() {
-      return this.isGetStyle ? this.$t('request_string_params') : `${this.$t('request_post_payload')} <application/json>`;
+      return this.isGetStyle ? this.$t('request_string_params') : `${this.$t('request_post_payload')}`;
     },
     /**
      * 能否标记请求内容
