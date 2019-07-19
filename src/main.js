@@ -3,7 +3,7 @@ import App from './App.vue'
 
 import i18n from './i18n'
 
-import { Button, Table,Modal ,Card,Select,Option,Input,Icon,Affix,BackTop,LoadingBar,Message,Dropdown,DropdownMenu,DropdownItem} from 'iview';
+import { Button, Table,Modal ,Card,Select,Option,Input,Icon,Affix,BackTop,LoadingBar,Message,Dropdown,DropdownMenu,DropdownItem,RadioGroup,Radio} from 'iview';
 
 Vue.component('Button', Button);
 Vue.component('Table', Table);
@@ -20,6 +20,8 @@ Vue.component('Loading', LoadingBar);
 Vue.component('Dropdown', Dropdown);
 Vue.component('DropdownMenu', DropdownMenu);
 Vue.component('DropdownItem', DropdownItem);
+Vue.component('RadioGroup', RadioGroup);
+Vue.component('Radio', Radio);
 
 Vue.prototype.$Message = Message;
 Vue.prototype.$Loading = LoadingBar;

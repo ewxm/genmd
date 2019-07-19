@@ -89,23 +89,19 @@
     <!-- 请求展示组件 -->
     <Card :padding="8" bordered dis-hover class="card">
       <div class="label">
-        <div>
-          <h6 class="title-label">{{requestContentType}}</h6>
-          <Icon
-            v-if="isGetStyle"
-            class="plus"
-            size="16"
-            type="md-add"
-            @click="addQueryParam"
-          />
-        </div>
-        <Button
-          v-if="isGetStyle"
-          size="small"
-          type="success"
-          ghost
-          @click="switchEditStyle"
-        >{{editStyleTitle}}</Button>
+          <div class="rqs-types">
+            <h6 class="title-label">{{requestContentType}}</h6>
+            <Icon
+              v-if="isGetStyle"
+              class="plus"
+              size="16"
+              type="md-add"
+              @click="addQueryParam"
+            />
+          </div>
+          <RadioGroup v-model="requestType">
+            <Radio v-for="type of requestTypes" :label="type.label" :key="type.label">{{type.label}}</Radio>
+          </RadioGroup>
       </div>
       <IViewInput
         class="value-content"
@@ -774,6 +770,24 @@ ${responseBodyTable}
       playURL: constant.GITHUB_VIDEO_URL,
       inputDescription: "",
       requestMethod: "GET",
+      requestType:'application/json',
+      requestTypes:[
+        {
+          label:'none',
+        },
+        {
+          label:'application/json',
+        },
+        {
+          label:'application/xml',
+        },
+        {
+          label:'application/x-www-form-urlencoded',
+        },
+        {
+          label:'multipart/form-data',
+        }
+      ],
       httpMethod: [
         "GET",
         "POST",
@@ -1187,6 +1201,11 @@ h6 {
 
 }
 
+.rqs-types {
+  display: flex;
+  flex-direction: row;
+
+}
 /* github theme */
 .gh-text, .gh-text, .gh-count{
   color: #19be6b90;
