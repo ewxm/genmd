@@ -90,31 +90,46 @@
     <Card :padding="8" bordered dis-hover class="card">
       <div class="label">
           <div class="rqs-types">
-            <h6 class="title-label">{{requestContentType}}</h6>
+            <h6 class="title-label">{{$t('request_string_params')}}</h6>
             <Icon
-              v-if="isGetStyle"
               class="plus"
               size="16"
               type="md-add"
-              @click="addQueryParam"
-            />
+              @click="addQueryParam"/>
+          </div>
+      </div>
+      <Table border :columns="requestColumns" :data="requestData"></Table>
+    </Card>
+     <!-- 请求展示组件 -->
+    <Card v-if="!isGetStyle" :padding="8" bordered dis-hover class="card" key="postBody">
+      <div class="label">
+          <div class="rqs-types">
+            <h6 class="title-label">{{$t('request_post_payload')}}</h6>
+            <Icon
+              v-if="isFormData"
+              class="plus"
+              size="16"
+              type="md-add"
+              @click="addEncodedParam"/>
           </div>
           <RadioGroup v-if="!isGetStyle" v-model="requestType">
             <Radio v-for="type of requestTypes" :label="type.label" :key="type.label">{{type.label}}</Radio>
           </RadioGroup>
       </div>
+      
+      <Table v-if="isFormData" border :columns="requestColumns" :data="requestData"></Table>
       <IViewInput
+        v-else
         class="value-content"
-        v-if="enableEditContent"
         v-model="inputContent"
+        :disabled="payloadDisable"
         type="textarea"
         :rows="10"
         placeholder
         @on-change="handleWriteContent"
       />
-      <Table   v-else border :columns="requestColumns" :data="requestData"></Table>
     </Card>
-    <!-- 相应展示组件 -->
+    <!-- 响应展示组件 -->
     <Card :padding="8" bordered dis-hover class="card">
       <h6 class="title-label">{{$t('response')}}</h6>
       <Table   class="value-content" border :columns="responseColumns" :data="responseContent"></Table>
@@ -179,17 +194,17 @@ export default {
       // "GET","POST","PUT","DELETE","OPTIONS","PATCH","TRACE","HEAD","CONNECT"
       return ["GET","OPTIONS","TRACE","HEAD","CONNECT"].includes(this.requestMethod)
     },
+    isFormData(){
+      return !this.isGetStyle && (this.requestType === 'application/x-www-form-urlencoded' || this.requestType === 'multipart/form-data')
+    },
+    payloadDisable(){
+      return !this.isGetStyle && this.requestType === 'none'
+    },
     /**
      * 底部Button的类型
      */
     buttomBtnType(){
       return this.responseContent.length > 0 ? 'success' : 'default'
-    },
-    /**
-     * 请求内容的类型
-     */
-    requestContentType() {
-      return this.isGetStyle ? this.$t('request_string_params') : `${this.$t('request_post_payload')}`;
     },
     /**
      * 能否标记请求内容
@@ -710,24 +725,24 @@ ${responseBodyTable}
      * 更新查询参数表格数据
      */
     updateQueryTableData() {
-      if (this.requestMethod === "GET") {
-        let data = "";
-        let len = this.requestData.length;
-        for (let i = 0; i < len; i++) {
-          let { key, value } = this.requestData[i];
-          data += `${key}:${value}`;
-          if (i < len) {
-            data += "\n";
-          }
+      let querystring = ''
+      let length = this.requestData.length;
+      let appendLength = length - 1;
+      for(let i = 0 ;i < length; i++){
+        let param = this.requestData[i]
+        querystring += `${param.key}=${param.value}`
+        if(i < appendLength){
+          querystring += '&'
         }
-        this.inputContent = data;
       }
+      this.inputURL = this.inputURL.split('?')[0] + '?' + querystring
     },
     /**
      * 移除表格中请求参数的某一行
      */
     removeRequestItem(index) {
       this.requestData.splice(index, 1);
+      this.updateQueryTableData();
     },
     /**
      * 移除表格中请求头的某一行
@@ -935,6 +950,7 @@ ${responseBodyTable}
                     value,
                     description
                   };
+                  this.updateQueryTableData()
                 }
               }
             });
@@ -956,6 +972,7 @@ ${responseBodyTable}
                     value: event.target.value,
                     description
                   };
+                  this.updateQueryTableData()
                 }
               }
             });
