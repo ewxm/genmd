@@ -33,7 +33,7 @@
     </Modal>
     <Modal v-model="showDescModel" draggable scrollable :title="$t('btn_add_description')">
       <p>{{$t('splicing_fill')}}</p>
-      <IViewInput style="marginTop:8px;" type="textarea" :rows="20" v-model="inputDescription" @on-change="fillDesc($event.target.value)" />
+      <IViewInput style="marginTop:8px;" type="textarea" :rows="20" v-model="inputDescriptions" @on-change="fillDesc($event.target.value)" />
     </Modal>
     <Modal v-model="showPlayModel" :title="$t('voide_tutorial')" width="1000">
       <video
@@ -98,7 +98,7 @@
               @click="addQueryParam"/>
           </div>
       </div>
-      <Table border :columns="requestColumns" :data="requestData"></Table>
+      <Table border :columns="queryColumns" :data="queryContent"></Table>
     </Card>
      <!-- 请求展示组件 -->
     <Card v-if="!isGetStyle" :padding="8" bordered dis-hover class="card" key="postBody">
@@ -117,22 +117,23 @@
           </RadioGroup>
       </div>
       
-      <Table v-if="isFormData" border :columns="requestColumns" :data="requestData"></Table>
+      <Table v-if="isFormData" border :columns="queryColumns" :data="requestBodyData"></Table>
       <IViewInput
         v-else
         class="value-content"
-        v-model="inputContent"
+        v-model="inputRaw"
         :disabled="payloadDisable"
         type="textarea"
         :rows="10"
         placeholder
-        @on-change="handleWriteContent"
+        @on-blur="formatRaw"
+        @on-change="handleWriteRaw"
       />
     </Card>
     <!-- 响应展示组件 -->
     <Card :padding="8" bordered dis-hover class="card">
       <h6 class="title-label">{{$t('response')}}</h6>
-      <Table   class="value-content" border :columns="responseColumns" :data="responseContent"></Table>
+      <Table class="value-content" border :columns="responseColumns" :data="responseContent"></Table>
     </Card>
     <!-- 固定按钮 -->
     <Affix :offset-bottom="20">
@@ -153,6 +154,8 @@
 
 <script>
 
+import cloneDeep from "lodash/cloneDeep";
+import xmlFormatter from 'xml-formatter';
 import DigitalClock from "vue-digital-clock";
 import markdown from "@/components/markdown";
 import FieldData from "@/struct/FieldData"
@@ -206,24 +209,6 @@ export default {
     buttomBtnType(){
       return this.responseContent.length > 0 ? 'success' : 'default'
     },
-    /**
-     * 能否标记请求内容
-     */
-    enableEditContent() {
-      if (!this.isGetStyle) {
-        return true;
-      }
-      if (this.isGetStyle && this.editStyle === "PARSED") {
-        return true;
-      }
-      return false;
-    },
-    /**
-     * 编辑标题(ONLY GET)
-     */
-    editStyleTitle() {
-      return this.editStyle === "KV" ? "PARSED EDIT" : "KEY-VALUE EDIT";
-    }
   },
   methods: {
     /**
@@ -277,7 +262,7 @@ export default {
             description: key
           });
         }
-        this.requestData = rd;
+        this.queryContent = rd;
       }
     },
     /**
@@ -286,10 +271,10 @@ export default {
     resetData() {
       localStorage.clear();
       this.headerContent = [];
-      this.requestData = [];
+      this.queryContent = [];
       this.responseContent = [];
       (this.responseBody = {}),
-        (this.inputContent = this.requestMethod === "GET" ? "" : "{}");
+        (this.inputRaw = this.requestMethod === "GET" ? "" : "{}");
     },
     /**
      * 视频进入全屏
@@ -350,7 +335,7 @@ export default {
           description += this.responseContent[i].key
         }
       }
-      this.inputDescription = description
+      this.inputDescriptions = description
     },
     /**
      * 显示播放
@@ -386,16 +371,16 @@ export default {
       let postType = `${this.requestMethod} & application/json`;
       let requestBody = "?";
       if (this.requestMethod === "GET") {
-        for (let i = 0; i < this.requestData.length; i++) {
-          let { key, value } = this.requestData[i];
+        for (let i = 0; i < this.queryContent.length; i++) {
+          let { key, value } = this.queryContent[i];
           requestBody += `${key}=${value}`;
-          if (i < this.requestData.length - 1) {
+          if (i < this.queryContent.length - 1) {
             requestBody += "&";
           }
         }
       } else {
         try {
-          let obj = JSON.parse(this.inputContent);
+          let obj = JSON.parse(this.inputRaw);
           requestBody = JSON.stringify(obj, null, 4);
         } catch (error) {
           requestBody = "暂无";
@@ -411,14 +396,14 @@ export default {
       let requestBodyTable = `|${paramName}|${paramType}|${paramRequired}|${paramDesc}|${paramExample}|
 |------|-------|----|-------|----|`;
       if (this.requestMethod === "GET") {
-        for (let i = 0; i < this.requestData.length; i++) {
-          let { key, value, description } = this.requestData[i];
+        for (let i = 0; i < this.queryContent.length; i++) {
+          let { key, value, description } = this.queryContent[i];
           let type = this.$t(`data_type_${getFieldType(value)}`);
           requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
         }
       } else {
         try {
-          let postBody = JSON.parse(this.inputContent);
+          let postBody = JSON.parse(this.inputRaw);
           for (let key in postBody) {
             let type = this.$t(`data_type_${getFieldType(postBody[key])}`);
             requestBodyTable += `\n|${key}|${type}|${defaultRequired}|-|${fieldValue}|`;
@@ -483,6 +468,8 @@ ${responseBodyTable}
       }
       this.loading = true;
       this.$Loading.start();
+
+      // 基本配置
       let opt = {
         method: this.requestMethod,
         url: this.inputURL,
@@ -490,6 +477,8 @@ ${responseBodyTable}
           'Content-Type': 'application/json'
         }
       };
+
+      // 追加请求体
       let localHeaders = localStorage.getItem("headers");
       if (localHeaders) {
         let headers = JSON.parse(localHeaders);
@@ -500,18 +489,17 @@ ${responseBodyTable}
         });
       }
 
-      // TODO application/json、application/x-www-form-urlencoded、text/plain、application/xml
-       opt.headers['Content-Type'] = 'application/json'
-
       if (this.requestMethod === "GET") {
         let params = {};
-        for (let item of this.requestData) {
+        this.queryContent.forEach(item => {
           params[item.key] = item.value;
-        }
+        })
         opt.params = params;
       } else {
-        opt.data = this.inputContent;
+        opt.headers['Content-Type'] = this.requestType
+        opt.data = this.inputRaw;
       }
+
       let body;
       try {
         body = await sendRequest(opt);
@@ -653,13 +641,13 @@ ${responseBodyTable}
      * 请求方法切换事件
      */
     handleMethodChange(requestMethod) {
-      if (requestMethod === "GET" && this.inputContent.length > 0) {
+      if (requestMethod === "GET" && this.inputRaw.length > 0) {
         try {
-          this.requestData = [];
+          this.queryContent = [];
           // JSON => 字符:
-          let jsonObject = JSON.parse(this.inputContent);
+          let jsonObject = JSON.parse(this.inputRaw);
           for (let key in jsonObject) {
-            this.requestData.push({
+            this.queryContent.push({
               key,
               value: jsonObject[key],
               description: "-"
@@ -667,55 +655,43 @@ ${responseBodyTable}
           }
           this.updateQueryTableData();
         } catch (error) {
-          this.requestData = [];
+          this.queryContent = [];
         }
-      } else if (requestMethod === "POST" && this.inputContent.length > 0) {
+      } else if (requestMethod === "POST" && this.inputRaw.length > 0) {
         let requestBody = {};
-        for (let i = 0; i < this.requestData.length; i++) {
-          let item = this.requestData[i];
+        for (let i = 0; i < this.queryContent.length; i++) {
+          let item = this.queryContent[i];
           requestBody[item.key] = item.value;
         }
-        this.inputContent = JSON.stringify(requestBody, null, 4);
+        this.inputRaw = JSON.stringify(requestBody, null, 4);
       }
-    },
-    /**
-     * 切换GET请求时的编辑类型
-     */
-    switchEditStyle() {
-      this.editStyle = this.editStyle === "KV" ? "PARSED" : "KV";
     },
     /**
      * 有新的请求数据输入
      */
-    handleWriteContent() {
-      let data = [];
-      try {
-        let kvs = this.inputContent.split("\n");
-        for (let i = 0; i < kvs.length; i++) {
-          let kv = kvs[i];
-          let [key, value] = kv.split(":");
-          let description = "-";
-          if (this.requestData.length > i) {
-            description = this.requestData[i].description;
-          }
-          data.push({
-            key,
-            value,
-            description
-          });
+    handleWriteRaw() {
+    },
+    /**
+     * 格式化JSON或者XML
+     */
+    formatRaw(){
+      try{
+        if(this.requestType === 'application/json'){
+          let data = JSON.parse(this.inputRaw)
+          this.inputRaw = JSON.stringify(data,null,4)
+        }else if(this.requestType === 'application/xml'){
+          this.inputRaw = xmlFormatter(this.inputRaw)
         }
-      } catch (e) {
-        //
-      }
+      }catch(e){
 
-      this.requestData = data;
+      }
     },
     /**
      * 添加一行查参数
      */
     addQueryParam() {
-      this.requestData.push({
-        key: this.requestData.length,
+      this.queryContent.push({
+        key: this.queryContent.length,
         value: "",
         description: ""
       });
@@ -726,10 +702,10 @@ ${responseBodyTable}
      */
     updateQueryTableData() {
       let querystring = ''
-      let length = this.requestData.length;
+      let length = this.queryContent.length;
       let appendLength = length - 1;
       for(let i = 0 ;i < length; i++){
-        let param = this.requestData[i]
+        let param = this.queryContent[i]
         querystring += `${param.key}=${param.value}`
         if(i < appendLength){
           querystring += '&'
@@ -741,7 +717,7 @@ ${responseBodyTable}
      * 移除表格中请求参数的某一行
      */
     removeRequestItem(index) {
-      this.requestData.splice(index, 1);
+      this.queryContent.splice(index, 1);
       this.updateQueryTableData();
     },
     /**
@@ -766,25 +742,31 @@ ${responseBodyTable}
   },
   data() {
     return {
+      // 接口地址
+      githubURL: constant.GITHUB_PROJECT_URL,
+      inputURL: constant.GITHUB_PROJECT_INFO,
+      playURL: constant.GITHUB_VIDEO_URL,
+
       loading: false,
+
+      // 模态组件
       showPlayModel: false,
       showDescModel: false,
       showMarkdownModel: false,
       showHeaderModel: false,
+      // 标题组件
       levelTitle: 1,
+      // 接口名
       apiName: "",
-      responseBody: {},
-      responseContent: [],
-      inputContent: "",
-      editStyle: "KV",
+      inputRaw: "",
       markdownContent: `# Test`,
       lang:'',
-      gitWatchers: 0,
-      githubURL: constant.GITHUB_PROJECT_URL,
-      inputURL: constant.GITHUB_PROJECT_INFO,
-      playURL: constant.GITHUB_VIDEO_URL,
-      inputDescription: "",
+
+      // 箭头拼接的描述信息
+      inputDescriptions: "",
+      // 请求方法
       requestMethod: "GET",
+      // 请求类型
       requestType:'application/json',
       requestTypes:[
         {
@@ -933,7 +915,7 @@ ${responseBodyTable}
           }
         }
       ],
-      requestColumns: [
+      queryColumns: [
         {
           title: this.$t('key'),
           key: "name",
@@ -944,8 +926,8 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  let { value, description } = this.requestData[params.index];
-                  this.requestData[params.index] = {
+                  let { value, description } = this.queryContent[params.index];
+                  this.queryContent[params.index] = {
                     key: event.target.value,
                     value,
                     description
@@ -966,8 +948,8 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  let { key, description } = this.requestData[params.index];
-                  this.requestData[params.index] = {
+                  let { key, description } = this.queryContent[params.index];
+                  this.queryContent[params.index] = {
                     key,
                     value: event.target.value,
                     description
@@ -988,8 +970,8 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  let { key, value } = this.requestData[params.index];
-                  this.requestData[params.index] = {
+                  let { key, value } = this.queryContent[params.index];
+                  this.queryContent[params.index] = {
                     key,
                     value,
                     description: event.target.value
@@ -1025,6 +1007,76 @@ ${responseBodyTable}
           }
         }
       ],
+      queryContent: [
+      ],
+      // 响应体表格render
+      requestColumns: [
+        {
+          title: this.$t('key'),
+          key: "name",
+          render: (h, params) => {
+            return h("div", [params.row.key]);
+          }
+        },
+        {
+          title: this.$t('value'),
+          key: "age",
+          render: (h, params) => {
+            return h("div", [params.row.value]);
+          }
+        },
+        {
+          title: this.$t('description'),
+          key: "address",
+          render: (h, params) => {
+            return h("IViewInput", {
+              props: {
+                value: params.row.description
+              },
+              on: {
+                "on-change": event => {
+                  let { key, value } = this.responseContent[params.index];
+                  this.responseContent[params.index] = {
+                    key,
+                    value,
+                    description: event.target.value
+                  };
+                }
+              }
+            });
+          }
+        },
+        {
+          title: this.$t('action'),
+          key: "action",
+          width: 150,
+          align: "center",
+          render: (h, params) => {
+            return h("div", [
+              h(
+                "Button",
+                {
+                  props: {
+                    type: "error",
+                    size: "small"
+                  },
+                  on: {
+                    click: () => {
+                      this.removeResponseItem(params.index);
+                    }
+                  }
+                },
+                this.$t('btn_delete')
+              )
+            ]);
+          }
+        }
+      ],
+      // 响应体
+      requestBody: {},
+      // 响应内容
+      requestContent: [],
+            // 响应体表格render
       responseColumns: [
         {
           title: this.$t('key'),
@@ -1087,13 +1139,10 @@ ${responseBodyTable}
           }
         }
       ],
-      requestData: [
-        {
-          key: "id",
-          value: "100001",
-          description: this.$t('input_id')
-        }
-      ],
+      // 响应体
+      responseBody: {},
+      // 响应内容
+      responseContent: [],
     };
   }
 };
