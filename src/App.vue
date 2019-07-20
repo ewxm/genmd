@@ -11,7 +11,7 @@
         :twelveHour="false"/>
         <Dropdown :transfer="true" @on-click="handleSelectedLang">
           <a href="javascript:void(0)" style="color:#19be6b;">
-              {{languageName}}
+              {{language}}
               <Icon color="#19be6b" type="ios-arrow-down"></Icon>
           </a>
           <DropdownMenu slot="list">
@@ -87,7 +87,7 @@
       </IViewInput>
     </Card>
     <!-- GET请求展示组件 -->
-    <Card v-if="isGetStyle" :padding="8" bordered dis-hover class="card">
+    <Card v-if="isLikeGet" :padding="8" bordered dis-hover class="card">
       <div class="label">
           <div class="rqs-types">
             <h6 class="title-label">{{$t('request_string_params')}}</h6>
@@ -95,13 +95,13 @@
               class="plus"
               size="16"
               type="md-add"
-              @click="addQueryParam"/>
+              @click="addQueryItem"/>
           </div>
       </div>
       <Table border :columns="queryColumns" :data="queryContent"></Table>
     </Card>
      <!-- POST请求展示组件 -->
-    <Card v-if="!isGetStyle" :padding="8" bordered dis-hover class="card" key="postBody">
+    <Card v-if="!isLikeGet" :padding="8" bordered dis-hover class="card" key="postBody">
       <div class="label">
           <div class="rqs-types">
             <h6 class="title-label">{{$t('request_post_payload')}}</h6>
@@ -110,9 +110,9 @@
               class="plus"
               size="16"
               type="md-add"
-              @click="addRequestParam"/>
+              @click="addRequestItem"/>
           </div>
-          <RadioGroup v-if="!isGetStyle" :value="requestType" @on-change="changeRequestType">
+          <RadioGroup v-if="!isLikeGet" :value="requestType" @on-change="changeRequestType">
             <Radio v-for="type of requestTypes" :label="type.label" :key="type.label">{{type.label}}</Radio>
           </RadioGroup>
       </div>
@@ -121,12 +121,12 @@
       <IViewInput
         v-else
         class="value-content"
-        v-model="inputRaw"
-        :disabled="payloadDisable"
+        v-model="requestBody"
+        :disabled="isNoneData"
         type="textarea"
         :rows="10"
         placeholder
-        @on-blur="formatRaw"
+        @on-blur="prettifyBody"
         @on-change="handleWriteRaw"
       />
     </Card>
@@ -138,12 +138,12 @@
     <!-- 固定按钮 -->
     <Affix :offset-bottom="20">
       <div class="btn-group">
-        <Button class="btn" :type="buttomBtnType" ghost @click="showAddHeaders">{{$t('btn_add_header')}}</Button>
-        <Button v-if="false" class="btn" :type="buttomBtnType" ghost @click="showHow">{{$t('btn_tutorial')}}</Button>
-        <Button class="btn" :type="buttomBtnType" ghost @click="openCORSSite">{{$t('btn_cors')}}</Button>
-        <Button class="btn" :type="buttomBtnType" ghost @click="showAddDescription">{{$t('btn_add_description')}}</Button>
-        <Button class="btn" :type="buttomBtnType" ghost @click="resetData">{{$t('btn_reset')}}</Button>
-        <Button class="btn" :type="buttomBtnType" ghost @click="showBuildMarkdown">{{$t('btn_build_md')}}</Button>
+        <Button class="btn" :type="buttomStyle" ghost @click="showAddHeaders">{{$t('btn_add_header')}}</Button>
+        <Button v-if="false" class="btn" :type="buttomStyle" ghost @click="showHow">{{$t('btn_tutorial')}}</Button>
+        <Button class="btn" :type="buttomStyle" ghost @click="openCORSSite">{{$t('btn_cors')}}</Button>
+        <Button class="btn" :type="buttomStyle" ghost @click="showAutoFillView">{{$t('btn_add_description')}}</Button>
+        <Button class="btn" :type="buttomStyle" ghost @click="resetData">{{$t('btn_reset')}}</Button>
+        <Button class="btn" :type="buttomStyle" ghost @click="showMarkdownView">{{$t('btn_build_md')}}</Button>
       </div>
     </Affix>
     <BackTop :height="100" :bottom="20">
@@ -174,15 +174,16 @@ export default {
   },
   mounted() {
     getWatchers();
-    this.updateQueryTableData();
+    this.updateQueryString();
     this.getHeaders()
     this.lang = this.$i18n.locale
   },
   computed: {
+
     /**
      * 右上角显示的语言名称
      */
-    languageName(){
+    language(){
       const defaultName = 'Language'
       if(this.lang){
         let targetItem = this.$supportLang.find(item => item.key === this.lang);
@@ -194,38 +195,55 @@ export default {
     /**
      * 当前选中的请求方法是否是GET传参风格
      */
-    isGetStyle(){
+    isLikeGet(){
       // "GET","POST","PUT","DELETE","OPTIONS","PATCH","TRACE","HEAD","CONNECT"
       return ["GET","OPTIONS","TRACE","HEAD","CONNECT"].includes(this.requestMethod)
     },
+    /**
+     * 是否是表单数据
+     */
     isFormData(){
-      return !this.isGetStyle && (this.requestType === 'application/x-www-form-urlencoded' || this.requestType === 'multipart/form-data')
-    },
-   isMultipartFormData(){
-      return !this.isGetStyle && (this.requestType === 'multipart/form-data')
-    },
-    payloadDisable(){
-      return !this.isGetStyle && this.requestType === 'none'
+      return !this.isLikeGet && (this.requestType === 'application/x-www-form-urlencoded' || this.requestType === 'multipart/form-data')
     },
     /**
-     * 底部Button的类型
+     * 是否是多部件表单
      */
-    buttomBtnType(){
+    isMultipartFormData(){
+      return !this.isLikeGet && (this.requestType === 'multipart/form-data')
+    },
+    /**
+     * 是否是无参请求体
+     */
+    isNoneData(){
+      return !this.isLikeGet && this.requestType === 'none'
+    },
+    /**
+     * 底部Button的风格
+     */
+    buttomStyle(){
       return this.responseContent.length > 0 ? 'success' : 'default'
     },
   },
   methods: {
+
+    /**
+     * 切换请求体类型
+     */
     changeRequestType(type){
       this.requestType = type
-      this.inputRaw = ''
+      this.requestBody = ''
       this.requestContent = []
+      this.responseBody = {}
+      this.responseContent = []
     },
+
     /**
      * 下载markdown
      */
     downloadMarkdown(){
       downloadString(this.$refs.md.getMarkdownValue(),`${this.apiName || Date.now()}.md`)
     },
+
     /**
      * 切换语言
      */
@@ -237,6 +255,7 @@ export default {
         window.location.reload();
       }
     },
+
     /**
      * 填充描述信息
      */
@@ -252,6 +271,7 @@ export default {
         }
       }
     },
+
     /**
      * 地址栏变化
      */
@@ -274,64 +294,104 @@ export default {
         this.queryContent = rd;
       }
     },
+
     /**
      * 清空调试数据
      */
     resetData() {
       localStorage.clear();
+      // 重置头状态
       this.headerContent = [];
+      // 重置 GET 参数
       this.queryContent = [];
+      // 重置 POST 参数
+      this.requestBody = ''
+      this.requestContent = []
+      // 重置响应
+      this.responseBody = {}
       this.responseContent = [];
-      (this.responseBody = {}),
-        (this.inputRaw = this.requestMethod === "GET" ? "" : "{}");
     },
+
     /**
      * 视频进入全屏
      */
     handleVideoPlay() {
       if (this.showPlayModel) this.$refs.video.webkitRequestFullScreen();
     },
+
     /**
      * 视频退出全屏
      */
     handleVideoEnd() {
       if (this.showPlayModel) this.$refs.video.webkitExitFullscreen();
     },
+
     /**
      * 获取头信息
      */
     getHeaders() {
       let headers = localStorage.getItem("headers");
       if (headers) {
-        this.headerContent = JSON.parse(headers);
+        try {
+          this.headerContent = JSON.parse(headers);
+        } catch (error) {
+          // nothing
+        }
       }
     },
+
     /**
      * 添加头
      */
     addHeader() {
       this.headerContent.push({
-        key: this.headerContent.length + 1,
+        key: "",
         value: "",
         description: ""
       });
     },
+
     /**
      * 保存头信息
      */
     saveHeader() {
-      localStorage.setItem("headers", JSON.stringify(this.headerContent));
+      try {
+        localStorage.setItem("headers", JSON.stringify(this.headerContent));
+      } catch (error) {
+        // nothing
+      }
     },
+
     /**
-     * 显示头
+     * 显示头管理视图
      */
     showAddHeaders() {
       this.showHeaderModel = true;
     },
+
     /**
-     * 显示自动填充
+     * 移除表格中请求头
      */
-    showAddDescription() {
+    removeHeaderItem(index) {
+      this.headerContent.splice(index, 1);
+      try {
+        localStorage.setItem("headers", JSON.stringify(this.headerContent));
+      } catch (error) {
+        // nothing
+      } 
+    },
+
+    /**
+     * 禁用或启用表格中请求头
+     */
+    toggleHeaderState(index,state) {
+      this.headerContent.splice(index, 1 ,{ ...this.headerContent[index] ,disabled: state});
+    },
+
+    /**
+     * 显示自动填充描述视图
+     */
+    showAutoFillView() {
       this.showDescModel = true;
       // Object k => 'k1->k2->k3...'
       let len = this.responseContent.length;
@@ -346,23 +406,26 @@ export default {
       }
       this.inputDescriptions = description
     },
+
     /**
      * 显示播放
      */
     showHow() {
       this.showPlayModel = true;
     },
+
     /**
-     * 打开跨域支持
+     * 打开跨域支持站点
      */
     openCORSSite() {
       const url = `<script>location.replace("https://enable-cors.org/server.html")<\/script>`
       window.open('javascript:window.name;', url);
     },
+
     /**
-     * 显示 Markdown
+     * 显示 Markdown 视图
      */
-    showBuildMarkdown() {
+    showMarkdownView() {
 
       // 不强制让用户输入接口名，但是第一次需要提醒（针对没耐心的用户优化体验）
       if(!this.apiName && !localStorage.getItem('has-show-in')){
@@ -388,7 +451,7 @@ export default {
           }
         }
       } else {
-          requestBody = this.inputRaw;
+          requestBody = this.requestBody;
       }
     let paramName = this.$t('th_param_name');
     let paramType = this.$t('th_param_type');
@@ -504,13 +567,12 @@ ${responseBodyTable}
           })
           // 数据编码
           opt.data = qs.stringify(data)
-          this.inputRaw = qs.stringify(data)
+          this.requestBody = qs.stringify(data)
         }else if(this.requestType === 'multipart/form-data'){
           let data = new FormData();
           let raw = '';
           this.requestContent.forEach(item => {
             data.append(item.key, item.value)
-            console.log(item.value)
             let isFile = item.value instanceof File;
             raw += '------WebKitFormBoundary55FCp0yvRjUfw5MK\n'
             raw += `Content-Disposition: form-data;name="${item.key}"`
@@ -525,12 +587,12 @@ ${responseBodyTable}
           })
           raw += '------WebKitFormBoundary55FCp0yvRjUfw5MK--'
           opt.data = data
-          this.inputRaw = raw
+          this.requestBody = raw
         }else if(this.requestType === 'none'){
           // no body
         }else{
           // Text 、XML ...
-          opt.data = this.inputRaw;
+          opt.data = this.requestBody;
         }
       }
       let body;
@@ -670,35 +732,15 @@ ${responseBodyTable}
       }
       return fieldArray
     },
+
     /**
      * 请求方法切换事件
      */
     handleMethodChange(requestMethod) {
-      if (requestMethod === "GET" && this.inputRaw.length > 0) {
-        try {
-          this.queryContent = [];
-          // JSON => 字符:
-          let jsonObject = JSON.parse(this.inputRaw);
-          for (let key in jsonObject) {
-            this.queryContent.push({
-              key,
-              value: jsonObject[key],
-              description: "-"
-            });
-          }
-          this.updateQueryTableData();
-        } catch (error) {
-          this.queryContent = [];
-        }
-      } else if (requestMethod === "POST" && this.inputRaw.length > 0) {
-        let requestBody = {};
-        for (let i = 0; i < this.queryContent.length; i++) {
-          let item = this.queryContent[i];
-          requestBody[item.key] = item.value;
-        }
-        this.inputRaw = JSON.stringify(requestBody, null, 4);
-      }
+      this.responseBody = {}
+      this.responseContent = []
     },
+
     /**
      * 有新的请求数据输入
      */
@@ -706,49 +748,58 @@ ${responseBodyTable}
       try{
         let objData = {}
         if(this.requestType === 'application/json'){
-          objData = JSON.parse(this.inputRaw)
+          objData = JSON.parse(this.requestBody)
         }else if(this.requestType === 'application/xml'){
-          objData = await xml2js(this.inputRaw)
+          objData = await xml2js(this.requestBody)
         }
-        console.log(objData)
         // 对象转换为表数据
         this.requestContent = this.createFieldCollection(objData);
-        console.log(this.requestContent)
       }catch(e){
         // nothing
       }
     },
+
     /**
      * 格式化JSON或者XML
      */
-    formatRaw(){
+    prettifyBody(){
       try{
         if(this.requestType === 'application/json'){
-          let data = JSON.parse(this.inputRaw)
-          this.inputRaw = JSON.stringify(data,null,4)
+          let data = JSON.parse(this.requestBody)
+          this.requestBody = JSON.stringify(data,null,4)
         }else if(this.requestType === 'application/xml'){
-          // this.inputRaw = xmlFormatter(this.inputRaw)
+          // this.requestBody = xmlFormatter(this.requestBody)
           // nothing
         }
       }catch(e){
-
+        // nothing
       }
     },
+
     /**
      * 添加一行查参数
      */
-    addQueryParam() {
+    addQueryItem() {
       this.queryContent.push({
         key: '',
         value: "",
         description: ""
       });
-      this.updateQueryTableData();
+      this.updateQueryString();
     },
+
     /**
-     * 更新查询参数表格数据
+     * 移除表格中请求参数的某一行
      */
-    updateQueryTableData() {
+    removeQueryItem(index) {
+      this.queryContent.splice(index, 1);
+      this.updateQueryString();
+    },
+
+    /**
+     * 更新查询参数URL
+     */
+    updateQueryString() {
       let querystring = ''
       let length = this.queryContent.length;
       let appendLength = length - 1;
@@ -761,48 +812,32 @@ ${responseBodyTable}
       }
       this.inputURL = this.inputURL.split('?')[0] + '?' + querystring
     },
+
     /**
      * 添加一行查参数
      */
-    addRequestParam() {
+    addRequestItem() {
       this.requestContent.push({
         key: '',
         value: "",
         description: ""
       });
     },
+
     /**
-     * 移除表格中请求参数的某一行
-     */
-    removeQueryItem(index) {
-      this.queryContent.splice(index, 1);
-      this.updateQueryTableData();
-    },
-    /**
-     * 移除表格中请求参数的某一行
+     * 移除表格中请求参数
      */
     removeRequestItem(index) {
       this.requestContent.splice(index, 1);
     },
+
     /**
-     * 移除表格中请求头的某一行
-     */
-    removeHeaderItem(index) {
-      this.headerContent.splice(index, 1);
-      localStorage.setItem("headers", JSON.stringify(this.headerContent));
-    },
-    /**
-     * 禁用表格中请求体的某一行
-     */
-    toggleHeaderState(index,newState) {
-      this.headerContent[index].disabled = newState
-    },
-    /**
-     * 移除表格中响应的某一行
+     * 移除表格中响应
      */
     removeResponseItem(index) {
       this.responseContent.splice(index, 1);
     }
+    
   },
   data() {
     return {
@@ -822,8 +857,9 @@ ${responseBodyTable}
       levelTitle: 1,
       // 接口名
       apiName: "",
-      inputRaw: "",
-      markdownContent: `# Test`,
+      // markdown 文本
+      markdownContent: '',
+      // 当前语言
       lang:'',
 
       // 箭头拼接的描述信息
@@ -832,6 +868,7 @@ ${responseBodyTable}
       requestMethod: "GET",
       // 请求类型
       requestType:'application/json',
+      // 支持的请求类型
       requestTypes:[
         {
           label:'none',
@@ -849,6 +886,7 @@ ${responseBodyTable}
           label:'multipart/form-data',
         }
       ],
+      // 支持的请求方法
       httpMethod: [
         "GET",
         "POST",
@@ -860,7 +898,7 @@ ${responseBodyTable}
         "HEAD",
         "CONNECT"
       ],
-      headerContent: [],
+      // 头Render 函数
       headerColumns: [
         {
           title: this.$t('key'),
@@ -979,24 +1017,24 @@ ${responseBodyTable}
           }
         }
       ],
+      // 头表格数据
+      headerContent: [],
+      // GET请求Render函数
       queryColumns: [
         {
           title: this.$t('key'),
           key: "name",
           render: (h, params) => {
+            const index = params.index
+            const queryContentItem = this.queryContent[index]
             return h("IViewInput", {
               props: {
                 value: params.row.key
               },
               on: {
                 "on-change": event => {
-                  let { value, description } = this.queryContent[params.index];
-                  this.queryContent[params.index] = {
-                    key: event.target.value,
-                    value,
-                    description
-                  };
-                  this.updateQueryTableData()
+                  this.queryContent.splice(index,1,{ ...queryContentItem , key: event.target.value})
+                  this.updateQueryString()
                 }
               }
             });
@@ -1006,19 +1044,16 @@ ${responseBodyTable}
           title: this.$t('value'),
           key: "age",
           render: (h, params) => {
+            const index = params.index
+            const queryContentItem = this.queryContent[index]
             return h("IViewInput", {
               props: {
                 value: params.row.value
               },
               on: {
                 "on-change": event => {
-                  let { key, description } = this.queryContent[params.index];
-                  this.queryContent[params.index] = {
-                    key,
-                    value: event.target.value,
-                    description
-                  };
-                  this.updateQueryTableData()
+                  this.queryContent.splice(index,1,{ ...queryContentItem , value: event.target.value})
+                  this.updateQueryString()
                 }
               }
             });
@@ -1028,18 +1063,15 @@ ${responseBodyTable}
           title: this.$t('description'),
           key: "address",
           render: (h, params) => {
+            const index = params.index
+            const queryContentItem = this.queryContent[index]
             return h("IViewInput", {
               props: {
                 value: params.row.description
               },
               on: {
                 "on-change": event => {
-                  let { key, value } = this.queryContent[params.index];
-                  this.queryContent[params.index] = {
-                    key,
-                    value,
-                    description: event.target.value
-                  };
+                  this.queryContent.splice(index,1,{ ...queryContentItem , description: event.target.value})
                 }
               }
             });
@@ -1071,9 +1103,10 @@ ${responseBodyTable}
           }
         }
       ],
+      // GET请求表格数据
       queryContent: [
       ],
-      // 请求体表格(Render)
+      // POST请求Render函数
       requestColumns: [
         {
           title: this.$t('key'),
@@ -1089,12 +1122,7 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  let { value, description } = requestContentItem;
-                  this.requestContent[params.index] = {
-                    key: event.target.value,
-                    value,
-                    description
-                  };
+                  this.requestContent.splice(index,1,{ ...requestContentItem, key: event.target.value })
                 }
               }
             },
@@ -1147,12 +1175,7 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  let { key, description } = this.requestContent[index];
-                  this.requestContent[index] = {
-                    key,
-                    value: event.target.value,
-                    description
-                  };
+                  this.requestContent.splice(index,1,{ ...requestContentItem, value: event.target.value })
                 }
               }
             }
@@ -1163,18 +1186,15 @@ ${responseBodyTable}
           title: this.$t('description'),
           key: "description",
           render: (h, params) => {
+            const index = params.index
+            const requestContentItem = this.requestContent[index];
             return h("IViewInput", {
               props: {
                 value: params.row.description
               },
               on: {
                 "on-change": event => {
-                  let { key, value } = this.requestContent[params.index];
-                  this.requestContent[params.index] = {
-                    key,
-                    value,
-                    description: event.target.value
-                  };
+                  this.requestContent.splice(index,1,{ ...requestContentItem, description: event.target.value })
                 }
               }
             });
@@ -1206,12 +1226,12 @@ ${responseBodyTable}
           }
         }
       ],
-      // 请求体 (Body)
-      requestBody: {},
-      // 请求内容（Table Line）
+      // POST请求原始值
+      requestBody: "",
+      // POST请求表格数据
       requestContent: [],
 
-      // 响应体表格render
+      // 响应表格Render函数
       responseColumns: [
         {
           title: this.$t('key'),
@@ -1231,18 +1251,15 @@ ${responseBodyTable}
           title: this.$t('description'),
           key: "address",
           render: (h, params) => {
+            const index = params.index
+            const responseContentItem = this.responseContent[index];
             return h("IViewInput", {
               props: {
                 value: params.row.description
               },
               on: {
                 "on-change": event => {
-                  let { key, value } = this.responseContent[params.index];
-                  this.responseContent[params.index] = {
-                    key,
-                    value,
-                    description: event.target.value
-                  };
+                  this.responseContent.splice(index,1,{... responseContentItem ,description: event.target.value})
                 }
               }
             });
@@ -1274,9 +1291,9 @@ ${responseBodyTable}
           }
         }
       ],
-      // 响应体
+      // 响应体原始值
       responseBody: {},
-      // 响应内容
+      // 响应表格数据
       responseContent: [],
     };
   }
