@@ -739,7 +739,7 @@ ${responseBodyTable}
      */
     addQueryParam() {
       this.queryContent.push({
-        key: this.queryContent.length,
+        key: '',
         value: "",
         description: ""
       });
@@ -766,7 +766,7 @@ ${responseBodyTable}
      */
     addRequestParam() {
       this.requestContent.push({
-        key: this.requestContent.length,
+        key: '',
         value: "",
         description: ""
       });
@@ -1411,4 +1411,5 @@ h6 {
 .gh-text, .gh-text, .gh-count{
   color: #19be6b90;
 }
+
 </style>
