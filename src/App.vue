@@ -87,7 +87,7 @@
       </IViewInput>
     </Card>
     <!-- GET请求展示组件 -->
-    <Card :padding="8" bordered dis-hover class="card">
+    <Card v-if="isGetStyle" :padding="8" bordered dis-hover class="card">
       <div class="label">
           <div class="rqs-types">
             <h6 class="title-label">{{$t('request_string_params')}}</h6>
@@ -217,6 +217,7 @@ export default {
   methods: {
     changeRequestType(type){
       this.requestType = type
+      this.inputRaw = ''
       this.requestContent = []
     },
     /**
@@ -376,7 +377,7 @@ export default {
       this.$nextTick(() => {
               
       let getType = "`GET` & `Query Params`";
-      let postType = `${this.requestMethod} & application/json`;
+      let postType = `${this.requestMethod} & ${this.requestType}`;
       let requestBody = "?";
       if (this.requestMethod === "GET") {
         for (let i = 0; i < this.queryContent.length; i++) {
@@ -387,12 +388,7 @@ export default {
           }
         }
       } else {
-        try {
-          let obj = JSON.parse(this.inputRaw);
-          requestBody = JSON.stringify(obj, null, 4);
-        } catch (error) {
-          requestBody = "暂无";
-        }
+          requestBody = this.inputRaw;
       }
     let paramName = this.$t('th_param_name');
     let paramType = this.$t('th_param_type');
@@ -508,12 +504,28 @@ ${responseBodyTable}
           })
           // 数据编码
           opt.data = qs.stringify(data)
+          this.inputRaw = qs.stringify(data)
         }else if(this.requestType === 'multipart/form-data'){
           let data = new FormData();
+          let raw = '';
           this.requestContent.forEach(item => {
             data.append(item.key, item.value)
+            console.log(item.value)
+            let isFile = item.value instanceof File;
+            raw += '------WebKitFormBoundary55FCp0yvRjUfw5MK\n'
+            raw += `Content-Disposition: form-data;name="${item.key}"`
+            if(isFile){
+              raw += `;filename="${item.value.name}"\n`
+              raw += `Content-Type: ${item.value.type || 'application/octet-stream'}`
+              raw += '\n\n'
+            }else{
+              raw += '\n'
+              raw += `${item.value}\n`
+            }
           })
+          raw += '------WebKitFormBoundary55FCp0yvRjUfw5MK--'
           opt.data = data
+          this.inputRaw = raw
         }else if(this.requestType === 'none'){
           // no body
         }else{
