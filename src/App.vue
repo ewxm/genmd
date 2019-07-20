@@ -155,7 +155,6 @@
 <script>
 
 import cloneDeep from "lodash/cloneDeep";
-import xmlFormatter from 'xml-formatter';
 import DigitalClock from "vue-digital-clock";
 import markdown from "@/components/markdown";
 import FieldData from "@/struct/FieldData"
