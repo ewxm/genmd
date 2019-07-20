@@ -86,7 +86,7 @@
         </Select>
       </IViewInput>
     </Card>
-    <!-- 请求展示组件 -->
+    <!-- GET请求展示组件 -->
     <Card :padding="8" bordered dis-hover class="card">
       <div class="label">
           <div class="rqs-types">
@@ -100,7 +100,7 @@
       </div>
       <Table border :columns="queryColumns" :data="queryContent"></Table>
     </Card>
-     <!-- 请求展示组件 -->
+     <!-- POST请求展示组件 -->
     <Card v-if="!isGetStyle" :padding="8" bordered dis-hover class="card" key="postBody">
       <div class="label">
           <div class="rqs-types">
@@ -110,14 +110,14 @@
               class="plus"
               size="16"
               type="md-add"
-              @click="addEncodedParam"/>
+              @click="addRequestParam"/>
           </div>
-          <RadioGroup v-if="!isGetStyle" v-model="requestType">
+          <RadioGroup v-if="!isGetStyle" :value="requestType" @on-change="changeRequestType">
             <Radio v-for="type of requestTypes" :label="type.label" :key="type.label">{{type.label}}</Radio>
           </RadioGroup>
       </div>
       
-      <Table v-if="isFormData" border :columns="queryColumns" :data="requestBodyData"></Table>
+      <Table v-if="isFormData" border :columns="requestColumns" :data="requestContent"></Table>
       <IViewInput
         v-else
         class="value-content"
@@ -159,11 +159,12 @@ import xmlFormatter from 'xml-formatter';
 import DigitalClock from "vue-digital-clock";
 import markdown from "@/components/markdown";
 import FieldData from "@/struct/FieldData"
-import { setLanguage, getFieldType,downloadString } from '@/utils/utils'
+import { setLanguage, getFieldType,downloadString , xml2js } from '@/utils/utils'
 
 import { getWatchers } from "@/api/github"
 import { sendRequest } from "@/api/core"
 import constant from "@/constant"
+import qs from 'qs';
 
 export default {
   name: "app",
@@ -200,6 +201,9 @@ export default {
     isFormData(){
       return !this.isGetStyle && (this.requestType === 'application/x-www-form-urlencoded' || this.requestType === 'multipart/form-data')
     },
+   isMultipartFormData(){
+      return !this.isGetStyle && (this.requestType === 'multipart/form-data')
+    },
     payloadDisable(){
       return !this.isGetStyle && this.requestType === 'none'
     },
@@ -211,6 +215,10 @@ export default {
     },
   },
   methods: {
+    changeRequestType(type){
+      this.requestType = type
+      this.requestContent = []
+    },
     /**
      * 下载markdown
      */
@@ -402,14 +410,10 @@ export default {
           requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
         }
       } else {
-        try {
-          let postBody = JSON.parse(this.inputRaw);
-          for (let key in postBody) {
-            let type = this.$t(`data_type_${getFieldType(postBody[key])}`);
-            requestBodyTable += `\n|${key}|${type}|${defaultRequired}|-|${fieldValue}|`;
-          }
-        } catch (error) {
-          requestBodyTable = "暂无";
+        for (let i = 0; i < this.requestContent.length; i++) {
+          let { key, value, description } = this.requestContent[i];
+          let type = this.$t(`data_type_${getFieldType(value)}`);
+          requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
         }
       }
 
@@ -490,16 +494,33 @@ ${responseBodyTable}
       }
 
       if (this.requestMethod === "GET") {
-        let params = {};
-        this.queryContent.forEach(item => {
-          params[item.key] = item.value;
-        })
-        opt.params = params;
+        // let params = {};
+        // this.queryContent.forEach(item => {
+        //   params[item.key] = item.value;
+        // })
+        // opt.params = params;
       } else {
         opt.headers['Content-Type'] = this.requestType
-        opt.data = this.inputRaw;
+        if(this.requestType === "application/x-www-form-urlencoded"){
+          let data = {};
+          this.requestContent.forEach(item => {
+            data[item.key] = item.value;
+          })
+          // 数据编码
+          opt.data = qs.stringify(data)
+        }else if(this.requestType === 'multipart/form-data'){
+          let data = new FormData();
+          this.requestContent.forEach(item => {
+            data.append(item.key, item.value)
+          })
+          opt.data = data
+        }else if(this.requestType === 'none'){
+          // no body
+        }else{
+          // Text 、XML ...
+          opt.data = this.inputRaw;
+        }
       }
-
       let body;
       try {
         body = await sendRequest(opt);
@@ -669,7 +690,21 @@ ${responseBodyTable}
     /**
      * 有新的请求数据输入
      */
-    handleWriteRaw() {
+    async handleWriteRaw() {
+      try{
+        let objData = {}
+        if(this.requestType === 'application/json'){
+          objData = JSON.parse(this.inputRaw)
+        }else if(this.requestType === 'application/xml'){
+          objData = await xml2js(this.inputRaw)
+        }
+        console.log(objData)
+        // 对象转换为表数据
+        this.requestContent = this.createFieldCollection(objData);
+        console.log(this.requestContent)
+      }catch(e){
+        // nothing
+      }
     },
     /**
      * 格式化JSON或者XML
@@ -680,7 +715,8 @@ ${responseBodyTable}
           let data = JSON.parse(this.inputRaw)
           this.inputRaw = JSON.stringify(data,null,4)
         }else if(this.requestType === 'application/xml'){
-          this.inputRaw = xmlFormatter(this.inputRaw)
+          // this.inputRaw = xmlFormatter(this.inputRaw)
+          // nothing
         }
       }catch(e){
 
@@ -714,11 +750,27 @@ ${responseBodyTable}
       this.inputURL = this.inputURL.split('?')[0] + '?' + querystring
     },
     /**
+     * 添加一行查参数
+     */
+    addRequestParam() {
+      this.requestContent.push({
+        key: this.requestContent.length,
+        value: "",
+        description: ""
+      });
+    },
+    /**
+     * 移除表格中请求参数的某一行
+     */
+    removeQueryItem(index) {
+      this.queryContent.splice(index, 1);
+      this.updateQueryTableData();
+    },
+    /**
      * 移除表格中请求参数的某一行
      */
     removeRequestItem(index) {
-      this.queryContent.splice(index, 1);
-      this.updateQueryTableData();
+      this.requestContent.splice(index, 1);
     },
     /**
      * 移除表格中请求头的某一行
@@ -997,7 +1049,7 @@ ${responseBodyTable}
                   },
                   on: {
                     click: () => {
-                      this.removeRequestItem(params.index);
+                      this.removeQueryItem(params.index);
                     }
                   }
                 },
@@ -1009,25 +1061,95 @@ ${responseBodyTable}
       ],
       queryContent: [
       ],
-      // 响应体表格render
+      // 请求体表格(Render)
       requestColumns: [
         {
           title: this.$t('key'),
-          key: "name",
+          key: "key",
           render: (h, params) => {
-            return h("div", [params.row.key]);
+            const index = params.index;
+            let requestContentItem = this.requestContent[params.index];
+            const isFileType = requestContentItem.type === 'File';
+            let fieldType =  isFileType ? 'File' : 'Text';
+            return h("IViewInput", {
+              props: {
+                value: params.row.key
+              },
+              on: {
+                "on-change": event => {
+                  let { value, description } = requestContentItem;
+                  this.requestContent[params.index] = {
+                    key: event.target.value,
+                    value,
+                    description
+                  };
+                }
+              }
+            },
+            this.isMultipartFormData ? [
+              h('Dropdown',{
+                props: {
+                  transfer: true
+                },
+                on:{
+                  'on-click': (type) => {
+                    this.requestContent.splice(index,1,{ ...requestContentItem, type: type })
+                  }
+                },
+                slot: 'append',
+              },[
+                h('a',{ props: { href: 'javascript:void(0)' } },[
+                  fieldType,
+                  h('Icon',{ props: { type: 'ios-arrow-down' } })
+                ]),
+                h('DropdownMenu',{ slot:'list' },[
+                  h('DropdownItem',{ props: { name: 'Text'} },"Text"),
+                  h('DropdownItem',{ props: { name: 'File'} },"File"),
+                ])
+              ])
+            ] : []);
           }
         },
         {
           title: this.$t('value'),
-          key: "age",
+          key: "value",
           render: (h, params) => {
-            return h("div", [params.row.value]);
+            const index = params.index
+            const requestContentItem = this.requestContent[index];
+            const isFileType = requestContentItem.type === 'File';
+            return isFileType ? h('input',{
+                domProps: {
+                  type: 'file'
+                },
+                on: {
+                  change: (e) => {
+                    const [ file ] = e.target.files;
+                    this.requestContent.splice(index,1,{ ...requestContentItem, value: file })
+                  }
+                }
+              })
+              :
+              h("IViewInput", {
+              props: {
+                value: params.row.value
+              },
+              on: {
+                "on-change": event => {
+                  let { key, description } = this.requestContent[index];
+                  this.requestContent[index] = {
+                    key,
+                    value: event.target.value,
+                    description
+                  };
+                }
+              }
+            }
+           );
           }
         },
         {
           title: this.$t('description'),
-          key: "address",
+          key: "description",
           render: (h, params) => {
             return h("IViewInput", {
               props: {
@@ -1035,8 +1157,8 @@ ${responseBodyTable}
               },
               on: {
                 "on-change": event => {
-                  let { key, value } = this.responseContent[params.index];
-                  this.responseContent[params.index] = {
+                  let { key, value } = this.requestContent[params.index];
+                  this.requestContent[params.index] = {
                     key,
                     value,
                     description: event.target.value
@@ -1062,7 +1184,7 @@ ${responseBodyTable}
                   },
                   on: {
                     click: () => {
-                      this.removeResponseItem(params.index);
+                      this.removeRequestItem(params.index);
                     }
                   }
                 },
@@ -1072,11 +1194,12 @@ ${responseBodyTable}
           }
         }
       ],
-      // 响应体
+      // 请求体 (Body)
       requestBody: {},
-      // 响应内容
+      // 请求内容（Table Line）
       requestContent: [],
-            // 响应体表格render
+
+      // 响应体表格render
       responseColumns: [
         {
           title: this.$t('key'),

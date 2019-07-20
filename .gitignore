@@ -16,6 +16,7 @@ package-lock.json
 # Editor directories and files
 .idea
 .vscode
+.favorites.json
 *.suo
 *.ntvs*
 *.njsproj

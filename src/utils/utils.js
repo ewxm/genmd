@@ -1,3 +1,4 @@
+import { parseString } from 'xml2js';
 const KEY_LANG = 'language'
 
 /**
@@ -80,4 +81,20 @@ export const downloadString = (content,title) => {
   a.setAttribute('href', href)
   a.setAttribute('download', title)
   a.click()
+}
+
+/**
+ * xml 2 obj
+ * @param {字符串} xml 
+ */
+export const xml2js = (xml) => {
+  return new Promise((resolve,reject) => {
+    parseString(xml,(err,result) => {
+      if(err){
+        reject(err)
+      }else{
+        resolve(result)
+      }
+    })
+  })
 }

@@ -22,7 +22,7 @@ Vue.component('DropdownMenu', DropdownMenu);
 Vue.component('DropdownItem', DropdownItem);
 Vue.component('RadioGroup', RadioGroup);
 Vue.component('Radio', Radio);
-
+    
 Vue.prototype.$Message = Message;
 Vue.prototype.$Loading = LoadingBar;
 import 'iview/dist/styles/iview.css';
