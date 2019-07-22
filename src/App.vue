@@ -1335,6 +1335,7 @@ body{
 
 .plus {
   margin-left: 4px;
+  cursor: pointer
 }
 input {
   color: #515a6e;
@@ -1423,6 +1424,7 @@ h6 {
   flex-direction: row;
 
 }
+
 /* github theme */
 .gh-text, .gh-text, .gh-count{
   color: #19be6b90;
