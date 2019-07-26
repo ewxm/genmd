@@ -154,11 +154,10 @@
 
 <script>
 
-import cloneDeep from "lodash/cloneDeep";
 import DigitalClock from "vue-digital-clock";
 import markdown from "@/components/markdown";
 import FieldData from "@/struct/FieldData"
-import { setLanguage, getFieldType,downloadString , xml2js } from '@/utils/utils'
+import { setLanguage, getFieldType, getStringFieldRealType, downloadString , xml2js } from '@/utils/utils'
 
 import { getWatchers } from "@/api/github"
 import { sendRequest } from "@/api/core"
@@ -464,13 +463,13 @@ export default {
       if (this.requestMethod === "GET") {
         for (let i = 0; i < this.queryContent.length; i++) {
           let { key, value, description } = this.queryContent[i];
-          let type = this.$t(`data_type_${getFieldType(value)}`);
+          let type = this.$t(`data_type_${getStringFieldRealType(value)}`);
           requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
         }
       } else {
         for (let i = 0; i < this.requestContent.length; i++) {
           let { key, value, description } = this.requestContent[i];
-          let type = this.$t(`data_type_${getFieldType(value)}`);
+          let type = this.$t(`data_type_${getStringFieldRealType(value)}`);
           requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
         }
       }
@@ -735,7 +734,7 @@ ${responseBodyTable}
     /**
      * 请求方法切换事件
      */
-    handleMethodChange(requestMethod) {
+    handleMethodChange() {
       this.responseBody = {}
       this.responseContent = []
     },

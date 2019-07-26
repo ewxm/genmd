@@ -48,14 +48,7 @@ export const getFieldType = (value) => {
     type = 'string'
   } else if (typeof value === 'number') {
     // 字段类型为数值(float/int/double/long)
-    const isFloat = (n) => ~~n !== n
-    if (isFloat(value)) {
-      // 浮点(单/双)
-      type = 'float';
-    } else {
-      // 整型 (长短)
-      type = 'int';
-    }
+    type = isFloat(value) ? 'float' : 'int';
   } else if (value instanceof Array) {
     // 数组
     type = 'array';
@@ -70,11 +63,52 @@ export const getFieldType = (value) => {
 }
 
 /**
+ * TODO 待优化 获取字符串字段类型的真实数据类型
+ */
+export const getStringFieldRealType = (value = '') => {
+  if (typeof value === 'string') {
+    let type = null;
+    let result = Number.parseFloat(value)
+    if (Number.isNaN(result)) {
+      if (value === 'true' || value === 'false') {
+        type = 'boolean';
+      } else if (value === 'undefined' || value === 'null') {
+        // 未知类型
+        type = 'unknown';
+      } else if(value.length === 0){
+        type = 'unknown'
+      }else{
+        type = 'string'
+      }
+    } else {
+      // 字段类型为数值(float/int/double/long)
+      type = isFloat(result) ? 'float' : 'int';
+    }
+    return type
+  } else {
+    return getFieldType(value)
+  }
+}
+
+/**
+ * 浮点类型判断
+ * @param {*} n 
+ */
+export const isFloat = (n) => {
+  if (Number.isNaN(n)) {
+    return false
+  } else {
+    return ~~n !== n
+  }
+}
+
+
+/**
  * 下载一个字符串
  * @param {字符串} content 
  * @param {文件名} title 
  */
-export const downloadString = (content,title) => {
+export const downloadString = (content, title) => {
   const blob = new Blob([content])
   const href = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -88,11 +122,11 @@ export const downloadString = (content,title) => {
  * @param {字符串} xml 
  */
 export const xml2js = (xml) => {
-  return new Promise((resolve,reject) => {
-    parseString(xml,(err,result) => {
-      if(err){
+  return new Promise((resolve, reject) => {
+    parseString(xml, (err, result) => {
+      if (err) {
         reject(err)
-      }else{
+      } else {
         resolve(result)
       }
     })
