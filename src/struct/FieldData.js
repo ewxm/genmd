@@ -13,6 +13,7 @@ export default class FieldData {
         this.key = key;
         this.originalKey = originalKey;
         this.value = value;
+        this.required = true; // 必填项默认为真
         this.description = description;
         this.parent = parent;
         // 迭代器记录值

@@ -286,6 +286,7 @@ export default {
           rd.push({
             key,
             value,
+            required: true,
             description: key
           });
         }
@@ -456,21 +457,21 @@ export default {
     let paramRequired = this.$t('th_param_required');
     let paramDesc = this.$t('th_param_description');
     let paramExample = this.$t('th_param_example');
-    let defaultRequired = this.$t('yes');
+    const requiredStr = required => required ? this.$t('yes') : this.$t('no')
       // 生成入参表格
       let requestBodyTable = `|${paramName}|${paramType}|${paramRequired}|${paramDesc}|${paramExample}|
 |------|-------|----|-------|----|`;
       if (this.requestMethod === "GET") {
         for (let i = 0; i < this.queryContent.length; i++) {
-          let { key, value, description } = this.queryContent[i];
+          let { key, value, description, required = true } = this.queryContent[i];
           let type = this.$t(`data_type_${getStringFieldRealType(value)}`);
-          requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
+          requestBodyTable += `\n|${key}|${type}|${requiredStr(required)}|${description}|${value}|`;
         }
       } else {
         for (let i = 0; i < this.requestContent.length; i++) {
-          let { key, value, description } = this.requestContent[i];
+          let { key, value, description, required = true } = this.requestContent[i];
           let type = this.$t(`data_type_${getStringFieldRealType(value)}`);
-          requestBodyTable += `\n|${key}|${type}|${defaultRequired}|${description}|${value}|`;
+          requestBodyTable += `\n|${key}|${type}|${requiredStr(required)}|${description}|${value}|`;
         }
       }
 
@@ -478,9 +479,9 @@ export default {
       let responseBodyTable = `|${paramName}|${paramType}|${paramRequired}|${paramDesc}|${paramExample}|
 |------|-------|----|-------|----|`;
       for (let i = 0; i < this.responseContent.length; i++) {
-        let responseItem = this.responseContent[i];
-        let type = this.$t(`data_type_${getFieldType(responseItem.value)}`);
-        responseBodyTable += `\n|${responseItem.key}|${type}|${defaultRequired}|${responseItem.description}|${responseItem.value}|`;
+        let { key, value, required = true, description} = this.responseContent[i];
+        let type = this.$t(`data_type_${getFieldType(value)}`);
+        responseBodyTable += `\n|${key}|${type}|${requiredStr(required)}|${description}|${value}|`;
       }
       let url = this.inputURL;
       let md = `
@@ -781,7 +782,8 @@ ${responseBodyTable}
       this.queryContent.push({
         key: '',
         value: "",
-        description: ""
+        description: "",
+        required: true
       });
       this.updateQueryString();
     },
@@ -818,6 +820,7 @@ ${responseBodyTable}
       this.requestContent.push({
         key: '',
         value: "",
+        required: true,
         description: ""
       });
     },
@@ -900,7 +903,7 @@ ${responseBodyTable}
       headerColumns: [
         {
           title: this.$t('key'),
-          key: "name",
+          key: "key",
           render: (h, params) => {
             let { value, description ,disabled = false} = this.headerContent[params.index];
             return h("IViewInput", {
@@ -922,7 +925,7 @@ ${responseBodyTable}
         },
         {
           title: this.$t('value'),
-          key: "age",
+          key: "value",
           render: (h, params) => {
             // let { key ,value, description ,disabled = false} = this.headerContent[params.index];
             let { key , description ,disabled = false} = this.headerContent[params.index];
@@ -945,7 +948,7 @@ ${responseBodyTable}
         },
         {
           title: this.$t('description'),
-          key: "address",
+          key: "description",
           render: (h, params) => {
             let { key ,value ,disabled = false} = this.headerContent[params.index];
             return h("IViewInput", {
@@ -1021,7 +1024,7 @@ ${responseBodyTable}
       queryColumns: [
         {
           title: this.$t('key'),
-          key: "name",
+          key: "key",
           render: (h, params) => {
             const index = params.index
             const queryContentItem = this.queryContent[index]
@@ -1040,7 +1043,7 @@ ${responseBodyTable}
         },
         {
           title: this.$t('value'),
-          key: "age",
+          key: "value",
           render: (h, params) => {
             const index = params.index
             const queryContentItem = this.queryContent[index]
@@ -1058,8 +1061,28 @@ ${responseBodyTable}
           }
         },
         {
+          title: this.$t('th_param_required'),
+          key: "required",
+          render: (h, params) => {
+            const index = params.index
+            const queryContentItem = this.queryContent[index]
+            return h("span", {
+              style: {
+                  cursor: 'pointer',
+              },
+              on: {
+                "click": event => {
+                  this.queryContent.splice(index,1,{ ...queryContentItem , required: !queryContentItem.required})
+                  this.updateQueryString()
+                }
+              }
+            },
+            queryContentItem.required ? this.$t('yes') : this.$t('no'));
+          }
+        },
+        {
           title: this.$t('description'),
-          key: "address",
+          key: "description",
           render: (h, params) => {
             const index = params.index
             const queryContentItem = this.queryContent[index]
@@ -1181,6 +1204,25 @@ ${responseBodyTable}
           }
         },
         {
+          title: this.$t('th_param_required'),
+          key: "required",
+          render: (h, params) => {
+            const index = params.index
+            const requestContentItem = this.requestContent[index]
+            return h("span", {
+              style: {
+                  cursor: 'pointer',
+              },
+              on: {
+                "click": event => {
+                  this.requestContent.splice(index,1,{ ...requestContentItem , required: !requestContentItem.required})
+                }
+              }
+            },
+            requestContentItem.required ? this.$t('yes') : this.$t('no'));
+          }
+        },
+        {
           title: this.$t('description'),
           key: "description",
           render: (h, params) => {
@@ -1233,21 +1275,40 @@ ${responseBodyTable}
       responseColumns: [
         {
           title: this.$t('key'),
-          key: "name",
+          key: "key",
           render: (h, params) => {
             return h("div", [params.row.key]);
           }
         },
         {
           title: this.$t('value'),
-          key: "age",
+          key: "value",
           render: (h, params) => {
             return h("div", [params.row.value]);
           }
         },
         {
+          title: this.$t('th_param_required'),
+          key: "required",
+          render: (h, params) => {
+            const index = params.index
+            const responseContentItem = this.responseContent[index]
+            return h("span", {
+              style: {
+                  cursor: 'pointer',
+              },
+              on: {
+                "click": event => {
+                  this.responseContent.splice(index,1,{ ...responseContentItem , required: !responseContentItem.required})
+                }
+              }
+            },
+            responseContentItem.required ? this.$t('yes') : this.$t('no'));
+          }
+        },
+        {
           title: this.$t('description'),
-          key: "address",
+          key: "description",
           render: (h, params) => {
             const index = params.index
             const responseContentItem = this.responseContent[index];
