@@ -56,7 +56,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yzb0101/genmd.git"
+    "url": "git+https://github.com/ewxm/genmd.git"
   },
   "keywords": [
     "API,MARKDOWN,接口,接口文档"
